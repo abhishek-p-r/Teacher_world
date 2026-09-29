@@ -15,6 +15,11 @@ yarn-error.log*
 # Environment variables
 # Keep these secret and do not commit them to a public repository!
 .env
+.env.*
 .env.local
+.env.development
+.env.production
 backend/.env
+backend/.env.*
 frontend/.env
+frontend/.env.*
