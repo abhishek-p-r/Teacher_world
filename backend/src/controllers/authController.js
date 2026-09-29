@@ -2,7 +2,7 @@
 const OtpToken = require("../models/OtpToken");
 const TeacherProfile = require("../models/TeacherProfile");
 const InstitutionProfile = require("../models/InstitutionProfile");
-const { sendOTP, sendOTPViaGmail, sendPasswordResetOTP } = require("../config/mailer");
+const { sendOTP, sendOTPViaGmail } = require("../config/mailer");
 const { logActivity } = require("../lib/activityLogger");
 const { generateAccessToken, generateRefreshToken } = require("../config/jwt");
 const { OAuth2Client } = require("google-auth-library");
@@ -252,7 +252,7 @@ exports.forgotPassword = async (req, res) => {
 
     const otp = generateOTP();
     await OtpToken.createHashedOTP(email, otp, "password-reset");
-    await sendPasswordResetOTP(email, otp);
+    await sendOTPViaGmail(email, otp);
     logActivity({ userId: user._id, email, action: "forgot.password", req });
     res.json({ message: "Password reset OTP sent to your email" });
   } catch (err) {

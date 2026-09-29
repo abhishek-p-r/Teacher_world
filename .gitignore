@@ -1,32 +1,43 @@
 # Dependencies
-
 node_modules/
-**/node_modules/
+/node_modules/
+backend/node_modules/
+frontend/node_modules/
 
-# Build output
-
+# Next.js / Vite build outputs
+.next/
 dist/
+frontend/dist/
+out/
 build/
-**/dist/
-**/build/
+*.tsbuildinfo
 
-# Environment variables and secrets
-
-.env
-.env.*
-!.env.example
-
-# Logs
-
+# Log files
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Vercel
+# Environment variables (Never commit real .env files to GitHub)
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+.env.test
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+!*.env.example
 
-.vercel/
+# Uploaded files
+backend/uploads/*
+!backend/uploads/.gitkeep
 
-# Operating system files
-
+# Operating System & IDE files
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/

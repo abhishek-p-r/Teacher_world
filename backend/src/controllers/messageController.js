@@ -214,12 +214,15 @@ exports.getConversations = async (req, res) => {
       if (messages.length > 0) {
         const message = messages[0]
 
-        if (message.senderId._id.toString() === userId.toString()) {
-          otherParticipant = message.receiverId
-          otherParticipantId = message.receiverId._id
+        const sender = message.senderId
+        const receiver = message.receiverId
+
+        if (sender && sender._id && sender._id.toString() === userId.toString()) {
+          otherParticipant = receiver
+          otherParticipantId = receiver ? receiver._id : null
         } else {
-          otherParticipant = message.senderId
-          otherParticipantId = message.senderId._id
+          otherParticipant = sender
+          otherParticipantId = sender ? sender._id : null
         }
 
         latestMessage = message.content
@@ -228,7 +231,7 @@ exports.getConversations = async (req, res) => {
         // No messages yet, determine other participant from application
         if (teacherProfile) {
           // User is teacher, other participant is institution
-          otherParticipant = { name: application.jobId.institutionId?.institutionName || "Institution" }
+          otherParticipant = { name: application.jobId?.institutionId?.institutionName || "Institution" }
           otherParticipantId = application.institutionId?.userId
         } else if (institutionProfile) {
           // User is institution, other participant is teacher
@@ -239,9 +242,9 @@ exports.getConversations = async (req, res) => {
 
       conversations.push({
         applicationId: application._id,
-        jobTitle: application.jobId.title,
-        institutionName: application.jobId.institutionId?.institutionName,
-        teacherName: application.teacherId?.name,
+        jobTitle: application.jobId ? application.jobId.title : "Job Unavailable",
+        institutionName: application.jobId?.institutionId?.institutionName || "Institution",
+        teacherName: application.teacherId?.name || "Teacher",
         otherParticipant: otherParticipant?.name || "Unknown",
         otherParticipantId,
         latestMessage,

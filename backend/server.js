@@ -1,4 +1,11 @@
-require("dotenv").config()
+const dotenv = require("dotenv")
+// Load env vars and check for errors
+const envResult = dotenv.config()
+if (envResult.error) {
+  console.error("[Server] Error loading .env file:", envResult.error)
+}
+console.log("[Server] GEMINI_API_KEY loaded:", process.env.GEMINI_API_KEY ? "Yes" : "No")
+
 const express = require("express")
 const cors = require("cors")
 const mongoose = require("mongoose")
@@ -130,7 +137,23 @@ app.get("/api/health", (req, res) => {
 
 app.use((err, req, res, next) => {
   log("error", "Server error:", err)
-  res.status(err.status || 500).json({ message: err.message || "Server error" })
+
+  // Handle MongoDB Duplicate Key Error (E11000)
+  if (err.code === 11000) {
+    // Check if this is an application submission based on the URL
+    if (req.originalUrl && req.originalUrl.includes("applications")) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already applied for this job.",
+      })
+    }
+    return res.status(400).json({
+      success: false,
+      message: "Duplicate entry found. This record already exists.",
+    })
+  }
+
+  res.status(err.status || 500).json({ success: false, message: err.message || "Server error" })
 })
 
 const PORT = parseInt(process.env.PORT, 10) || 5000
