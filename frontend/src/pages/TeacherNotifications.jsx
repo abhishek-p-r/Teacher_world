@@ -5,8 +5,7 @@ import { Link } from "react-router-dom"
 import { ArrowLeft, Bell, Trash2 } from "lucide-react"
 import axios from "axios"
 import Logo from "../components/Logo"
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function TeacherNotifications() {
   const [notifications, setNotifications] = useState([

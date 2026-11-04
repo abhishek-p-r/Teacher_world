@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, Link } from "react-router-dom"; // Assuming you use React Router
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import { API_URL } from "../config/api";
 
 const InterviewPage = () => {
   // Get applicationId from URL, e.g., /applications/:applicationId/schedule-interview

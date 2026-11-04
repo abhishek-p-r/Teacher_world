@@ -6,7 +6,7 @@ import { ArrowLeft, Filter, Download, Mail, Eye, Edit, Trash2, X, CheckCircle, C
 import axios from "axios"
 import Logo from "../components/Logo"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 export default function InstitutionApplications() {
   const [applications, setApplications] = useState([])
@@ -88,7 +88,7 @@ export default function InstitutionApplications() {
       window.open(`${API_URL.replace('/api', '')}${teacherProfile.resumeUrl}`, '_blank')
     } else if (application.teacherId?.resumeUrl) {
       // Fallback to basic application data
-      window.open(`${API_URL}/uploads/resumes/${application.teacherId.resumeUrl}`, '_blank')
+      window.open(`${BASE_URL}/uploads/resumes/${application.teacherId.resumeUrl}`, '_blank')
     } else {
       alert("Resume not available for this applicant")
     }
@@ -354,7 +354,7 @@ export default function InstitutionApplications() {
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         {app.teacherId?.photo ? (
                           <img
-                            src={`${API_URL.replace('/api', '')}${app.teacherId.photo}`}
+                            src={`${BASE_URL}${app.teacherId.photo}`}
                             alt={app.teacherId?.name}
                             style={{
                               width: "40px",
@@ -740,7 +740,7 @@ export default function InstitutionApplications() {
                   <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
                     {teacherProfile.photo ? (
                       <img
-                        src={`${API_URL.replace('/api', '')}${teacherProfile.photo}`}
+                        src={`${BASE_URL}${teacherProfile.photo}`}
                         alt={teacherProfile.name}
                         style={{
                           width: "80px",

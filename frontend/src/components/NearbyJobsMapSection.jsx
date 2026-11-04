@@ -5,7 +5,7 @@ import { MapPin, Loader } from "lucide-react"
 import axios from "axios"
 import JobsMapView from "./JobsMapView"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function NearbyJobsMapSection({ token }) {
   const [profile, setProfile] = useState(null)

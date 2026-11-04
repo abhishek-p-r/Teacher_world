@@ -6,7 +6,7 @@ import { ArrowLeft, Edit, Trash2 } from "lucide-react"
 import axios from "axios"
 import io from "socket.io-client"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 export default function TeacherApplications() {
   const [applications, setApplications] = useState([])
@@ -20,7 +20,7 @@ export default function TeacherApplications() {
     fetchApplications()
 
     // Initialize socket connection
-    const newSocket = io(API_URL.replace('/api', ''), {
+    const newSocket = io(BASE_URL, {
       auth: { token }
     })
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Download, Mail, Phone, MapPin, Briefcase, Award, FileText } from 'lucide-react'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+import { API_URL } from "../config/api"
 
 export default function TeacherProfileViewer({ teacherId, token, onClose }) {
   const [profile, setProfile] = useState(null)

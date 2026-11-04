@@ -2,7 +2,7 @@
 // Client-side helper that routes chat requests securely through the Teacher World backend
 // NEVER exposes Gemini API keys in frontend code or client bundles
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export async function generateGeminiResponse(prompt) {
   if (!prompt || typeof prompt !== "string") {

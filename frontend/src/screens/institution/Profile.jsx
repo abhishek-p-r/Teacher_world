@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Upload } from 'lucide-react'
+import { API_URL, BASE_URL } from '../../config/api'
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 
 // Helper to ensure URLs returned from the API are absolute so the browser can load them
 const normalizeUrl = (url) => {

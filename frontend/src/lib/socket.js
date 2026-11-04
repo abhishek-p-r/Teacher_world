@@ -1,7 +1,8 @@
 import io from 'socket.io-client'
 
-const rawApiUrl = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) || "http://localhost:5000"
-const API_BASE_URL = rawApiUrl.replace(/\/api\/?$/i, "")
+import { BASE_URL } from '../config/api'
+const API_BASE_URL = BASE_URL
+
 
 class SocketService {
   constructor() {

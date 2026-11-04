@@ -5,8 +5,8 @@ import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
 import Logo from "../components/Logo"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"
+import { API_URL, BASE_URL as BACKEND_URL } from "../config/api"
+
 
 const normalizeUrl = (url) => {
   if (!url) return null

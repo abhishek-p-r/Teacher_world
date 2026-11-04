@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import axios from "axios"
+import { API_URL } from "../config/api"
 
 const TeacherJobDetail = () => {
   const navigate = useNavigate()
@@ -16,7 +17,7 @@ const TeacherJobDetail = () => {
   const [token, setToken] = useState("")
   const [applicationId, setApplicationId] = useState(null)
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+
 
   useEffect(() => {
     const storedToken = localStorage.getItem("accessToken")

@@ -5,7 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Edit2, User } from "lucide-react";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import { API_URL } from "../config/api";
 
 export default function InstitutionTeams() {
   const [teamMembers, setTeamMembers] = useState([]);

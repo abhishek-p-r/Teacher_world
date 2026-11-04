@@ -4,9 +4,7 @@ import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Save, Plus, Trash2, Upload, X, AlertCircle, CheckCircle } from "lucide-react"
 import axios from "axios"
-
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function Profile() {
   const navigate = useNavigate()

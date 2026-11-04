@@ -7,7 +7,7 @@ import axios from "axios"
 import Logo from "../components/Logo"
 import JobsMapView from "../components/JobsMapView"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY
 
 export default function Jobs() {

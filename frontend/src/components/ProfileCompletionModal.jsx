@@ -4,7 +4,7 @@ import { useState } from "react"
 import { X, Upload, Plus } from "lucide-react"
 import axios from "axios"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function ProfileCompletionModal({ isOpen, onClose, userId, token, onProfileUpdate }) {
   const [formData, setFormData] = useState({

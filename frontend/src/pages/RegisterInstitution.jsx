@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function RegisterInstitution() {
   const navigate = useNavigate()
@@ -53,7 +53,12 @@ export default function RegisterInstitution() {
       setSuccessMessage("OTP sent to your email! Check your inbox.")
       setCurrentStep(2)
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.")
+      if (err.code === "ERR_NETWORK") {
+        const target = import.meta.env.PROD ? "the cloud backend server (Render)" : "http://localhost:5000"
+        setError(`Network Error: Cannot connect to server (${target}). Please verify your internet connection or check backend status.`)
+      } else {
+        setError(err.response?.data?.message || "Registration failed. Please try again.")
+      }
     } finally {
       setLoading(false)
     }

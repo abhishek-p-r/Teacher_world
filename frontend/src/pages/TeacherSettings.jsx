@@ -6,8 +6,7 @@ import { ArrowLeft, Lock, Trash2 } from "lucide-react"
 import axios from "axios"
 import { logout } from "../lib/auth"
 import Logo from "../components/Logo"
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function TeacherSettings() {
   const [settings, setSettings] = useState({

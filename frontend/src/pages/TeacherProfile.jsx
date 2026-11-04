@@ -6,7 +6,7 @@ import { ArrowLeft, Save, FileText, CheckCircle, Trash2, Upload, Eye } from "luc
 import axios from "axios"
 import Logo from "../components/Logo"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 const MARKS_TYPES = ["SSLC", "PUC", "Intermediate", "Diploma", "Bachelor", "Master", "PhD", "IB", "ICSE", "Other"]
 const CERTIFICATE_TYPES = [
@@ -71,9 +71,8 @@ export default function TeacherProfile() {
   const normalizeUrl = (url) => {
     if (!url) return url
     if (/^https?:\/\//i.test(url)) return url
-    const base = API_URL.replace(/\/api\/?$/i, "")
-    if (url.startsWith("/")) return `${base}${url}`
-    return `${base}/${url}`
+    if (url.startsWith("/")) return `${BASE_URL}${url}`
+    return `${BASE_URL}/${url}`
   }
 
   useEffect(() => {

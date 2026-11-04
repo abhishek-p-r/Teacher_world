@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+import { API_URL } from '../config/api';
 
 // Small helper to perform a clean logout across the app
 export function logout(navigate) {

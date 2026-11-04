@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getAuthToken, refreshAccessToken } from '../../lib/auth'
+import { API_URL } from '../../config/api'
 
 export default function InstitutionPostJob() {
   const navigate = useNavigate()
@@ -111,7 +112,7 @@ export default function InstitutionPostJob() {
       }
 
       const doPost = async (tokenToUse) => {
-        return fetch('http://localhost:5000/api/jobs', {
+        return fetch(`${API_URL}/jobs`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -9,14 +9,13 @@ import ProfileCompletionModal from "../components/ProfileCompletionModal"
 import NearbyJobsMapSection from "../components/NearbyJobsMapSection"
 import Logo from "../components/Logo"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 const normalizeUrl = (url) => {
   if (!url) return null
   if (/^https?:\/\//i.test(url)) return url
-  const base = API_URL.replace(/\/api\/?$/i, "")
-  if (url.startsWith("/")) return `${base}${url}`
-  return `${base}/${url}`
+  if (url.startsWith("/")) return `${BASE_URL}${url}`
+  return `${BASE_URL}/${url}`
 }
 
 const renderError = (errorMessage) => {

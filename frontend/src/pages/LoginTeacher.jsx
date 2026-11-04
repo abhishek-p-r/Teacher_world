@@ -6,7 +6,7 @@ import axios from "axios"
 import { Eye, EyeOff } from "lucide-react"
 import { GoogleLogin } from "@react-oauth/google"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function LoginTeacher() {
   const navigate = useNavigate()

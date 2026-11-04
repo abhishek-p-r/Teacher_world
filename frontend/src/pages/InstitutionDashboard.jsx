@@ -5,7 +5,6 @@
 // import Logo from "../components/Logo"
 // import InterviewList from "../components/InterviewList"
 
-// const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 
 // // Helper to ensure URLs returned from the API are absolute so the browser can load them
 // const normalizeUrl = (url) => {
@@ -1080,15 +1079,14 @@ import { logout } from "../lib/auth"
 import Logo from "../components/Logo"
 import InterviewList from "../components/InterviewList"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 // Helper to ensure URLs returned from the API are absolute so the browser can load them
 const normalizeUrl = (url) => {
   if (!url) return null
   if (/^https?:\/\//i.test(url)) return url
-  const base = API_URL.replace(/\/api\/?$/i, "")
-  if (url.startsWith("/")) return `${base}${url}`
-  return `${base}/${url}`
+  if (url.startsWith("/")) return `${BASE_URL}${url}`
+  return `${BASE_URL}/${url}`
 }
 
 export default function InstitutionDashboard() {
@@ -1311,8 +1309,7 @@ export default function InstitutionDashboard() {
       alert("Invalid live interview room.")
       return
     }
-    const base = API_URL.replace(/\/api\/?$/i, "")
-    window.open(`${base}/live-interview/${roomId}`, "_blank")
+    window.open(`${BASE_URL}/live-interview/${roomId}`, "_blank")
   }
 
   return (

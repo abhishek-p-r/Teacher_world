@@ -6,7 +6,7 @@ import { MapPin, DollarSign, Briefcase, Heart, Share2, ArrowLeft } from "lucide-
 import axios from "axios"
 import Logo from "../components/Logo"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function JobDetail() {
   const { id } = useParams()

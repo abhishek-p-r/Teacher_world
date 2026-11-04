@@ -1,15 +1,14 @@
 "use client"
 
 import { useMemo } from "react"
+import { BASE_URL } from "../config/api"
 
 export default function ProfilePhotoDisplay({ photoUrl, name = "Teacher", size = 100, border = true }) {
   const normalizeUrl = (url) => {
     if (!url) return null
     if (/^https?:\/\//i.test(url)) return url
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
-    const base = API_URL.replace(/\/api\/?$/i, "")
-    if (url.startsWith("/")) return `${base}${url}`
-    return `${base}/${url}`
+    if (url.startsWith("/")) return `${BASE_URL}${url}`
+    return `${BASE_URL}/${url}`
   }
 
   const normalizedUrl = useMemo(() => normalizeUrl(photoUrl), [photoUrl])

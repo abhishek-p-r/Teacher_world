@@ -5,14 +5,13 @@ import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
 import Logo from "../components/Logo"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 const normalizeUrl = (url) => {
   if (!url) return null
   if (/^https?:\/\//i.test(url)) return url
-  const base = API_URL.replace(/\/api\/?$/i, "")
-  if (url.startsWith("/")) return `${base}${url}`
-  return `${base}/${url}`
+  if (url.startsWith("/")) return `${BASE_URL}${url}`
+  return `${BASE_URL}/${url}`
 }
 
 export default function TeacherInterviews() {

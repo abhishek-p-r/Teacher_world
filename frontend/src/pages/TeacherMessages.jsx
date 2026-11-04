@@ -7,7 +7,7 @@ import axios from "axios"
 import { io } from "socket.io-client"
 import Logo from "../components/Logo"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 export default function TeacherMessages() {
   const [conversations, setConversations] = useState([])
@@ -74,7 +74,7 @@ export default function TeacherMessages() {
   }
 
   const initializeSocket = () => {
-    const newSocket = io("http://localhost:5000", {
+    const newSocket = io(BASE_URL, {
       auth: {
         token: token,
       },

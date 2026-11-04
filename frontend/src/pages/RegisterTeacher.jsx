@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 console.log("[RegisterTeacher] API URL:", API_URL)
 
 export default function RegisterTeacher() {
@@ -56,9 +56,8 @@ export default function RegisterTeacher() {
       const url = `${API_URL}/auth/register-teacher`
       console.log("[RegisterTeacher] Full API URL:", url)
       console.log("[RegisterTeacher] Environment:", {
-        VITE_API_URL: import.meta.env.VITE_API_URL,
-        defaultURL: "http://localhost:5000/api",
-        finalURL: API_URL,
+        API_URL,
+        mode: import.meta.env.MODE,
       })
       console.log("[RegisterTeacher] Sending registration request to:", url)
 
@@ -81,7 +80,8 @@ export default function RegisterTeacher() {
       let errorMessage = "Registration failed. Please try again."
 
       if (err.code === "ERR_NETWORK") {
-        errorMessage = "Network Error: Cannot connect to server. Make sure backend is running on http://localhost:5000"
+        const target = import.meta.env.PROD ? "the cloud backend server (Render)" : "http://localhost:5000"
+        errorMessage = `Network Error: Cannot connect to server (${target}). Please verify your internet connection or check backend status.`
       } else if (err.response?.status === 400) {
         errorMessage = err.response.data.message || "Invalid input. Please check your details."
       } else if (err.response?.status === 409) {

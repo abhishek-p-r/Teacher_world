@@ -7,7 +7,7 @@ import axios from "axios"
 import Logo from "../components/Logo"
 import KarnatakaMap from "../components/KarnatakaMap"
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+import { API_URL } from "../config/api"
 
 export default function InstitutionEditJob() {
   const navigate = useNavigate()

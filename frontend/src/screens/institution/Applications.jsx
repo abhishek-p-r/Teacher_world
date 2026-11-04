@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getAuthUser } from '../../lib/auth'
+import { API_URL } from '../../config/api'
 
 export default function InstitutionApplications() {
   const [applications, setApplications] = useState([])
@@ -20,7 +21,6 @@ export default function InstitutionApplications() {
     notes: ''
   })
   const { user } = getAuthUser()
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 
   useEffect(() => {
     fetchApplications()
