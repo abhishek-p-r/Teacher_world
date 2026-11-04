@@ -1,6 +1,7 @@
 import io from 'socket.io-client'
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'
+const rawApiUrl = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) || "http://localhost:5000"
+const API_BASE_URL = rawApiUrl.replace(/\/api\/?$/i, "")
 
 class SocketService {
   constructor() {
@@ -17,7 +18,7 @@ class SocketService {
 
     this.socket = io(API_BASE_URL, {
       auth: {
-        token: localStorage.getItem('token')
+        token: localStorage.getItem('accessToken') || localStorage.getItem('token')
       }
     })
 

@@ -11,9 +11,9 @@ exports.getTeacherProfile = async (req, res) => {
 
     // Get application counts
     const Application = require("../models/Application")
-    const appliedJobsCount = await Application.countDocuments({ teacherId: req.user.userId })
-    const shortlistedCount = await Application.countDocuments({ teacherId: req.user.userId, status: "shortlisted" })
-    const hiredCount = await Application.countDocuments({ teacherId: req.user.userId, status: "accepted" })
+    const appliedJobsCount = await Application.countDocuments({ $or: [{ teacherId: profile._id }, { teacherId: req.user.userId }] })
+    const shortlistedCount = await Application.countDocuments({ $or: [{ teacherId: profile._id }, { teacherId: req.user.userId }], status: "shortlisted" })
+    const hiredCount = await Application.countDocuments({ $or: [{ teacherId: profile._id }, { teacherId: req.user.userId }], status: "accepted" })
 
     // For now, recommended jobs count can be a placeholder or calculated based on some logic
     // You can implement recommendation logic later
@@ -43,9 +43,9 @@ exports.getTeacherProfileById = async (req, res) => {
 
     // Get application counts
     const Application = require("../models/Application")
-    const appliedJobsCount = await Application.countDocuments({ teacherId: teacherId })
-    const shortlistedCount = await Application.countDocuments({ teacherId: teacherId, status: "shortlisted" })
-    const hiredCount = await Application.countDocuments({ teacherId: teacherId, status: "accepted" })
+    const appliedJobsCount = await Application.countDocuments({ $or: [{ teacherId: profile._id }, { teacherId: teacherId }] })
+    const shortlistedCount = await Application.countDocuments({ $or: [{ teacherId: profile._id }, { teacherId: teacherId }], status: "shortlisted" })
+    const hiredCount = await Application.countDocuments({ $or: [{ teacherId: profile._id }, { teacherId: teacherId }], status: "accepted" })
 
     const profileWithStats = {
       ...profile.toObject(),
@@ -271,8 +271,8 @@ exports.getInstitutionProfile = async (req, res) => {
 
     // Get job statistics
     const Job = require("../models/Job")
-    const totalJobs = await Job.countDocuments({ institutionId: req.user.userId })
-    const activeJobs = await Job.countDocuments({ institutionId: req.user.userId, status: "active" })
+    const totalJobs = await Job.countDocuments({ $or: [{ institutionId: profile._id }, { institutionId: req.user.userId }] })
+    const activeJobs = await Job.countDocuments({ $or: [{ institutionId: profile._id }, { institutionId: req.user.userId }], status: "active" })
 
     const profileWithStats = {
       ...profile.toObject(),

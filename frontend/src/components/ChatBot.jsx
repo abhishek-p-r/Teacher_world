@@ -35,9 +35,12 @@ function formatBotMessage(text) {
   }
 }
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+
 async function sendMessage(messageText) {
   try {
-    const response = await fetch("/api/chat", {
+    const cleanBase = API_URL.replace(/\/api\/?$/i, "")
+    const response = await fetch(`${cleanBase}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

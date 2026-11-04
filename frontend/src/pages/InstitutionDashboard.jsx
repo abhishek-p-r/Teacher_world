@@ -1311,7 +1311,8 @@ export default function InstitutionDashboard() {
       alert("Invalid live interview room.")
       return
     }
-    window.open(`${BACKEND_URL}/live-interview/${roomId}`, "_blank")
+    const base = API_URL.replace(/\/api\/?$/i, "")
+    window.open(`${base}/live-interview/${roomId}`, "_blank")
   }
 
   return (

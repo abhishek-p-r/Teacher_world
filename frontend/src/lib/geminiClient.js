@@ -1,28 +1,33 @@
-import { GoogleGenAI } from "@google/genai";
+// geminiClient.js
+// Client-side helper that routes chat requests securely through the Teacher World backend
+// NEVER exposes Gemini API keys in frontend code or client bundles
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-if (!apiKey) {
-  console.error("VITE_GEMINI_API_KEY is missing. Please set this environment variable.");
-}
-
-const ai = new GoogleGenAI({ apiKey });
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 
 export async function generateGeminiResponse(prompt) {
-  if (!apiKey) {
-    throw new Error("Missing Gemini API Key");
+  if (!prompt || typeof prompt !== "string") {
+    throw new Error("Prompt is required")
   }
+
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-    if (!response?.text) {
-      throw new Error("No text response from Gemini API");
+    const cleanBase = API_URL.replace(/\/api\/?$/i, "")
+    const response = await fetch(`${cleanBase}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: prompt }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || errorData.message || `Server error: ${response.statusText}`)
     }
-    return response.text;
+
+    const data = await response.json()
+    return data.response || "Something went wrong. Please try again."
   } catch (error) {
-    console.error("Error generating Gemini response:", error);
-    throw error;
+    console.error("Error generating Gemini response via backend:", error)
+    throw error
   }
 }

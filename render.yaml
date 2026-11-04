@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: teacher-portal-backend
+    name: teacher-world-backend
     runtime: node
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
@@ -9,6 +9,12 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://teacher-world.vercel.app
       - key: GMAIL_USER
         sync: false
       - key: GMAIL_PASSWORD

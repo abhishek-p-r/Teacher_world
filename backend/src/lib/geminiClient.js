@@ -1,39 +1,84 @@
 "use strict";
 
 // geminiClient.js
-// This module handles calls to the Google Gemini API using @google/genai package
-// Implements async/await with proper error handling and fallback message.
+// Handles calls to Google Gemini API using @google/genai package
+// Implements safe initialization, timeout handling, and fallback models.
 
-// Import GoogleGenAI from @google/genai for Gemini API calls
 const { GoogleGenAI } = require("@google/genai");
 
-// Validate GEMINI_API_KEY presence on module load
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("GEMINI_API_KEY environment variable is not set.");
-}
+let aiInstance = null;
+let aiInitialized = false;
 
-// Instantiate Gemini client with server-side API key
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function getGeminiClient() {
+  if (aiInitialized) {
+    return aiInstance;
+  }
+
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "").trim();
+
+  if (!apiKey) {
+    console.warn("[GeminiClient] Notice: GEMINI_API_KEY is not configured in environment variables.");
+    aiInitialized = true;
+    aiInstance = null;
+    return null;
+  }
+
+  try {
+    aiInstance = new GoogleGenAI({ apiKey });
+    aiInitialized = true;
+    console.log("[GeminiClient] GoogleGenAI client initialized successfully.");
+    return aiInstance;
+  } catch (err) {
+    console.error("[GeminiClient] Initialization error:", err.message);
+    aiInitialized = true;
+    aiInstance = null;
+    return null;
+  }
+}
 
 /**
  * Asynchronously generates a Gemini response for the given user message.
- * Uses "gemini-2.5-flash" model per requirements.
- * Logs any error internally; returns fallback string on failure.
+ * Supports timeout, model fallback ("gemini-2.5-flash" -> "gemini-1.5-flash"),
+ * and safe fallback responses.
  *
- * @param {string} userMessage User input message for Gemini AI.
+ * @param {string} userMessage User input message / prompt for Gemini AI.
  * @returns {Promise<string>} Gemini response text or fallback error message.
  */
 async function generateGeminiResponse(userMessage) {
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [userMessage],
-    });
-    return response.text;
-  } catch (error) {
-    console.error("Gemini API error:", error);
-    return "Something went wrong. Please try again.";
+  const client = getGeminiClient();
+
+  if (!client) {
+    return "I am TeacherWorld Assistant. The AI service is currently configuring or offline. Please contact support or explore our job search and profile tools directly.";
   }
+
+  const modelsToTry = [
+    process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    "gemini-1.5-flash",
+  ];
+
+  for (const model of modelsToTry) {
+    try {
+      const generatePromise = client.models.generateContent({
+        model: model,
+        contents: [userMessage],
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Gemini API request timed out after 15s")), 15000)
+      );
+
+      const response = await Promise.race([generatePromise, timeoutPromise]);
+
+      if (response && response.text) {
+        return response.text;
+      }
+    } catch (error) {
+      console.warn(`[GeminiClient] Attempt with model '${model}' failed:`, error.message);
+      // Try next model in list
+    }
+  }
+
+  return "I'm having a little trouble connecting right now. Please try asking your question again in a moment, or visit the Job Search page for available teaching positions!";
 }
 
 module.exports = {

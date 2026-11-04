@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, Link } from "react-router-dom"; // Assuming you use React Router
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const InterviewPage = () => {
   // Get applicationId from URL, e.g., /applications/:applicationId/schedule-interview
   const { applicationId } = useParams();
@@ -29,7 +31,7 @@ const InterviewPage = () => {
 
     try {
       // Pass the applicationId to the backend
-      const response = await axios.post("/api/interviews/schedule", {
+      const response = await axios.post(`${API_URL}/interviews/schedule`, {
         topic,
         start_time: isoTime,
         duration: 30, // Example: 30 minutes
@@ -66,7 +68,7 @@ const InterviewPage = () => {
 
     const fetchApplicationDetails = async () => {
       try {
-        const { data } = await axios.get(`/api/applications/${applicationId}`);
+        const { data } = await axios.get(`${API_URL}/applications/${applicationId}`);
         if (data.success) {
           setApplicationDetails(data.application);
           // Pre-fill the topic with candidate and job info
@@ -93,7 +95,8 @@ const InterviewPage = () => {
         onClick={() => {
           // Save the current page URL to return to it after auth
           localStorage.setItem('zoomAuthRedirect', window.location.pathname);
-          window.location.href = "http://localhost:5000/zoom/login";
+          const base = API_URL.replace(/\/api\/?$/i, "");
+          window.location.href = `${base}/api/zoom/login`;
         }}
         disabled={isZoomAuthenticated}
       >

@@ -69,7 +69,7 @@ exports.sendMessage = async (req, res) => {
     ])
 
     // Emit real-time message via Socket.io
-    const io = require("../../server").io
+    const io = global.io || (require("../../server") && require("../../server").io)
     if (io) {
       io.to(receiverId.toString()).emit("new_message", message.toObject())
     }

@@ -210,7 +210,7 @@ async function chatHandler(req, res) {
     // Handle empty response
     if (!aiResponse || !aiResponse.trim()) {
       return res.json({
-        response: "I apologize, but I'm having trouble responding right now. Could you please try rephrasing your question?"
+        response: "This question is not related to teachers, institutions, recruitment or education. Please ask something related to the TeacherWorld Portal."
       });
     }
 

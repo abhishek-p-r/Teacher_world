@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@geminiClient': path.resolve(__dirname, '../../my-app/frontend/src/lib'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
   server: {
