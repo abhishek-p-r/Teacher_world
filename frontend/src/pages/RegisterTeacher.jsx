@@ -80,8 +80,7 @@ export default function RegisterTeacher() {
       let errorMessage = "Registration failed. Please try again."
 
       if (err.code === "ERR_NETWORK") {
-        const target = import.meta.env.PROD ? "the cloud backend server (Render)" : "http://localhost:5000"
-        errorMessage = `Network Error: Cannot connect to server (${target}). Please verify your internet connection or check backend status.`
+        errorMessage = "Network Error: Cannot connect to the server (https://teacher-world.onrender.com). Please verify your internet connection or check backend status."
       } else if (err.response?.status === 400) {
         errorMessage = err.response.data.message || "Invalid input. Please check your details."
       } else if (err.response?.status === 409) {

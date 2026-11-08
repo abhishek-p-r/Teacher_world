@@ -5,10 +5,7 @@ import path from "path"
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "")
   const resolvedApiUrl =
-    env.VITE_API_URL ||
-    (mode === "production"
-      ? "https://teacher-world.onrender.com/api"
-      : "http://localhost:5000/api")
+    env.VITE_API_URL || "https://teacher-world.onrender.com/api"
 
   return {
     plugins: [react()],
@@ -24,8 +21,9 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         "/api": {
-          target: "http://localhost:5000",
+          target: "https://teacher-world.onrender.com",
           changeOrigin: true,
+          secure: false,
         },
       },
     },

@@ -54,8 +54,7 @@ export default function RegisterInstitution() {
       setCurrentStep(2)
     } catch (err) {
       if (err.code === "ERR_NETWORK") {
-        const target = import.meta.env.PROD ? "the cloud backend server (Render)" : "http://localhost:5000"
-        setError(`Network Error: Cannot connect to server (${target}). Please verify your internet connection or check backend status.`)
+        setError("Network Error: Cannot connect to the server (https://teacher-world.onrender.com). Please verify your internet connection or check backend status.")
       } else {
         setError(err.response?.data?.message || "Registration failed. Please try again.")
       }

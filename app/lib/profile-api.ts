@@ -78,7 +78,7 @@ export const profileApi = {
     try {
       const token = localStorage.getItem("accessToken")
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/profile/teacher/photo`,
+        `${process.env.NEXT_PUBLIC_API_URL || "https://teacher-world.onrender.com/api"}/profile/teacher/photo`,
         {
           method: "POST",
           headers: {
@@ -115,7 +115,7 @@ export const profileApi = {
     try {
       const token = localStorage.getItem("accessToken")
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/profile/institution/photo`,
+        `${process.env.NEXT_PUBLIC_API_URL || "https://teacher-world.onrender.com/api"}/profile/institution/photo`,
         {
           method: "POST",
           headers: {

@@ -1,23 +1,16 @@
 /**
  * Teacher World - Centralized API & Environment Configuration
  *
- * Automatically switches between:
- * - Development URL: http://localhost:5000/api
- * - Production URL: https://teacher-world.onrender.com/api
+ * Backend URL: https://teacher-world.onrender.com
+ * API Base URL: https://teacher-world.onrender.com/api
  */
 
-const isProd = import.meta.env.PROD || import.meta.env.MODE === "production"
-
-// Priority:
-// 1. Explicit VITE_API_URL in environment (Vercel, .env, etc.)
-// 2. Production: https://teacher-world.onrender.com/api
-// 3. Development: http://localhost:5000/api
+// Use explicitly passed VITE_API_URL or default to the live Render backend
 export const API_URL = (
-  import.meta.env.VITE_API_URL ||
-  (isProd ? "https://teacher-world.onrender.com/api" : "http://localhost:5000/api")
+  import.meta.env.VITE_API_URL || "https://teacher-world.onrender.com/api"
 ).replace(/\/+$/, "")
 
-// Base URL without /api (for Socket.io, Daily.co video calls, static uploads)
+// Base URL without /api (for Socket.io, static uploads, video calls)
 export const BASE_URL = API_URL.replace(/\/api\/?$/i, "")
 
 // Helper to normalize any endpoint or asset path and avoid duplicate /api prefixes
