@@ -135,12 +135,10 @@ uploadDirs.forEach((dir) => {
 app.use("/uploads", express.static(path.join(__dirname, "uploads")))
 
 // Root endpoint confirming Teacher World is online
-app.get("/", (req, res) => {
+app.get(["/", "/api"], (req, res) => {
   res.status(200).json({
     success: true,
-    project: "Teacher World",
-    message: "Backend is running successfully",
-    status: "ONLINE",
+    message: "Backend server is running successfully!",
   })
 })
 
@@ -215,6 +213,7 @@ app.use("/api/location", require("./src/routes/locationRoutes"))
 app.use("/api/chat", require("./src/routes/chatRoutes"))
 app.use("/api/institution/teams", require("./src/routes/institutionTeamRoutes"))
 app.use("/api/institution/team", require("./src/routes/institutionTeamRoutes"))
+app.use("/api/debug", require("./src/routes/debugRoutes"))
 
 // JSON 404 Handler for undefined routes
 app.use((req, res) => {
