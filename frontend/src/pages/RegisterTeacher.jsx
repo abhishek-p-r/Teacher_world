@@ -83,10 +83,16 @@ export default function RegisterTeacher() {
         errorMessage = "Network Error: Cannot connect to the server (https://teacher-world.onrender.com). Please verify your internet connection or check backend status."
       } else if (err.response?.status === 400) {
         errorMessage = err.response.data.message || "Invalid input. Please check your details."
+      } else if (err.response?.status === 404) {
+        errorMessage = err.response.data?.message || "Registration service temporarily unavailable (404). Please try again or check backend connection."
       } else if (err.response?.status === 409) {
-        errorMessage = "Email already registered. Please login instead."
+        errorMessage = err.response.data?.message || "Email already registered. Please login instead."
+      } else if (err.response?.status === 429) {
+        errorMessage = err.response.data?.message || "Too many OTP requests. Please wait a while before trying again."
       } else if (err.response?.status === 500) {
         errorMessage = err.response.data.message || "Server error. Please try again later."
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
       } else if (err.message) {
         errorMessage = err.message
       }

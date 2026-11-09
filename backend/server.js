@@ -169,8 +169,17 @@ app.get("/api/health", (req, res) => {
   })
 })
 
-// MongoDB Connection Logic
-const mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/teacher-portal"
+// MongoDB Connection Logic (supports MONGODB_URI and MONGO_URI)
+const mongoUri =
+  process.env.MONGODB_URI ||
+  process.env.MONGO_URI ||
+  "mongodb://localhost:27017/teacher-portal"
+
+const mongooseOptions = {
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+}
 
 mongoose.connection.on("connected", () => {
   log("info", `[MongoDB] Successfully connected to: ${mongoose.connection.host}/${mongoose.connection.name}`)
@@ -187,7 +196,8 @@ mongoose.connection.on("disconnected", () => {
 const connectWithRetry = async () => {
   try {
     log("info", "[MongoDB] Attempting connection...")
-    await mongoose.connect(mongoUri)
+    await mongoose.connect(mongoUri, mongooseOptions)
+    log("info", "[MongoDB] Connection established successfully.")
   } catch (err) {
     log("error", `[MongoDB] Initial connection failed: ${err.message}`)
     log("info", "[MongoDB] Will retry connection in 5 seconds...")
@@ -197,22 +207,21 @@ const connectWithRetry = async () => {
 
 connectWithRetry()
 
-// API Routes
-app.use("/api/auth", require("./src/routes/authRoutes"))
-app.use("/api/auth", require("./src/routes/socialAuthRoutes"))
-app.use("/api/jobs", require("./src/routes/jobRoutes"))
-app.use("/api/applications", require("./src/routes/applicationRoutes"))
-app.use("/api/messages", require("./src/routes/messageRoutes"))
-app.use("/api/interviews", require("./src/routes/interviewRoutes"))
-app.use("/api/live-interviews", require("./src/routes/liveInterviewRoutes"))
-app.use("/api/live-interview", require("./src/routes/liveInterviewRoutes"))
-app.use("/api/profile", require("./src/routes/profileRoutes"))
-app.use("/api/materials", require("./src/routes/materialRoutes"))
-app.use("/api/zoom", require("./src/routes/zoomRoutes"))
-app.use("/api/location", require("./src/routes/locationRoutes"))
-app.use("/api/chat", require("./src/routes/chatRoutes"))
-app.use("/api/institution/teams", require("./src/routes/institutionTeamRoutes"))
-app.use("/api/institution/team", require("./src/routes/institutionTeamRoutes"))
+// API Routes - mounted with flexible prefixes to prevent 404 errors
+app.use(["/api/auth", "/auth", "/api"], require("./src/routes/authRoutes"))
+app.use(["/api/auth", "/auth", "/api"], require("./src/routes/socialAuthRoutes"))
+app.use(["/api/jobs", "/jobs"], require("./src/routes/jobRoutes"))
+app.use(["/api/applications", "/applications"], require("./src/routes/applicationRoutes"))
+app.use(["/api/messages", "/messages"], require("./src/routes/messageRoutes"))
+app.use(["/api/interviews", "/interviews"], require("./src/routes/interviewRoutes"))
+app.use(["/api/live-interviews", "/live-interviews"], require("./src/routes/liveInterviewRoutes"))
+app.use(["/api/live-interview", "/live-interview"], require("./src/routes/liveInterviewRoutes"))
+app.use(["/api/profile", "/profile"], require("./src/routes/profileRoutes"))
+app.use(["/api/materials", "/materials"], require("./src/routes/materialRoutes"))
+app.use(["/api/zoom", "/zoom"], require("./src/routes/zoomRoutes"))
+app.use(["/api/location", "/location"], require("./src/routes/locationRoutes"))
+app.use(["/api/chat", "/chat"], require("./src/routes/chatRoutes"))
+app.use(["/api/institution/teams", "/api/institution/team", "/institution/teams"], require("./src/routes/institutionTeamRoutes"))
 app.use("/api/debug", require("./src/routes/debugRoutes"))
 
 // JSON 404 Handler for undefined routes

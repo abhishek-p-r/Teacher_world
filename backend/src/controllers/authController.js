@@ -14,59 +14,77 @@ const generateOTP = () => {
 
 // Register new teacher
 exports.registerTeacher = async (req, res) => {
-  // Example: create new User with role teacher, create teacher profile, etc.
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ success: false, message: "Missing required fields: name, email, and password are required." });
     }
-    
-    const existingUser = await User.findOne({ email });
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+
+    let user;
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      if (existingUser.verified) {
+        return res.status(409).json({ success: false, message: "Email already registered. Please login instead." });
+      }
+      // If user registered earlier but didn't complete OTP verification, allow updating credentials
+      existingUser.name = name.trim();
+      existingUser.password = password;
+      await existingUser.save();
+      user = existingUser;
+    } else {
+      user = new User({
+        email: normalizedEmail,
+        password,
+        name: name.trim(),
+        role: "teacher",
+        verified: false,
+      });
+      await user.save();
+      await TeacherProfile.findOneAndUpdate(
+        { userId: user._id },
+        { userId: user._id },
+        { upsert: true, new: true }
+      );
     }
-    
-    const user = new User({
-      email,
-      password, // Assume password hashing is handled in model pre-save hooks
-      name,
-      role: "teacher",
-      verified: false,
-    });
-    
-    await user.save();
-    await TeacherProfile.create({ userId: user._id });
+
     // Create OTP token and send verification email for registration
     try {
-      // Check rate limiting
-      const isRateLimited = await OtpToken.checkRateLimit(email);
+      const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
       if (isRateLimited) {
         return res.status(429).json({
-          message: "Too many OTP requests. Please try again in an hour."
+          success: false,
+          message: "Too many OTP requests. Please wait a while before requesting again."
         });
       }
 
       const otp = generateOTP();
-      await OtpToken.createHashedOTP(email, otp, "registration");
-      await sendOTPViaGmail(email, otp);
+      await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
+      
+      // Send email without crashing/blocking HTTP response
+      sendOTPViaGmail(normalizedEmail, otp).catch(err => {
+        console.warn('[REGISTER] Async OTP send notice (teacher):', err.message);
+      });
+
       logActivity({ userId: user._id, action: "register.teacher", req });
-      try {
-        if (global && global.io) global.io.emit('otp_sent', { email, success: true, context: 'registration' });
-      } catch (e) {
-        console.warn('[REGISTER] Could not emit otp_sent socket event (teacher):', e);
+      if (global && global.io) {
+        try {
+          global.io.emit('otp_sent', { email: normalizedEmail, success: true, context: 'registration' });
+        } catch (e) {}
       }
-    } catch (emailErr) {
-      console.error('[REGISTER] Failed to send registration OTP:', emailErr);
-      try {
-        if (global && global.io) global.io.emit('otp_sent', { email, success: false, error: emailErr.message || String(emailErr), context: 'registration' });
-      } catch (e) {
-        console.warn('[REGISTER] Could not emit otp_sent failure socket event (teacher):', e);
-      }
+    } catch (otpErr) {
+      console.error('[REGISTER] Failed to generate/send OTP (teacher):', otpErr.message || otpErr);
     }
-    res.status(201).json({ message: "Teacher registered successfully" });
+
+    return res.status(201).json({
+      success: true,
+      message: "Teacher registered successfully. OTP sent to your email!",
+      email: normalizedEmail,
+    });
   } catch (err) {
     console.error("registerTeacher error:", err);
-    res.status(500).json({ message: "Registration failed", error: err.message });
+    return res.status(500).json({ success: false, message: "Registration failed", error: err.message });
   }
 };
 
@@ -75,47 +93,72 @@ exports.registerInstitution = async (req, res) => {
   try {
     const { email, password, institutionName } = req.body;
     if (!email || !password || !institutionName) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res.status(400).json({ success: false, message: "Missing required fields: institution name, email, and password are required." });
     }
-    
-    const existingUser = await User.findOne({ email });
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+
+    let user;
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      if (existingUser.verified) {
+        return res.status(409).json({ success: false, message: "Email already registered. Please login instead." });
+      }
+      existingUser.name = institutionName.trim();
+      existingUser.password = password;
+      await existingUser.save();
+      user = existingUser;
+    } else {
+      user = new User({
+        email: normalizedEmail,
+        password,
+        name: institutionName.trim(),
+        role: "institution",
+        verified: false,
+      });
+      await user.save();
+      await InstitutionProfile.findOneAndUpdate(
+        { userId: user._id },
+        { userId: user._id, institutionName: institutionName.trim() },
+        { upsert: true, new: true }
+      );
     }
-    
-    const user = new User({
-      email,
-      password,
-      name: institutionName,
-      role: "institution",
-      verified: false,
-    });
-    
-    await user.save();
-    await InstitutionProfile.create({ userId: user._id, institutionName });
+
     // Create OTP token and send verification email for registration
     try {
+      const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
+      if (isRateLimited) {
+        return res.status(429).json({
+          success: false,
+          message: "Too many OTP requests. Please wait a while before requesting again."
+        });
+      }
+
       const otp = generateOTP();
-      await OtpToken.createHashedOTP(email, otp, "registration");
-      await sendOTPViaGmail(email, otp);
+      await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
+
+      sendOTPViaGmail(normalizedEmail, otp).catch(err => {
+        console.warn('[REGISTER] Async OTP send notice (institution):', err.message);
+      });
+
       logActivity({ userId: user._id, action: "register.institution", req });
-      try {
-        if (global && global.io) global.io.emit('otp_sent', { email, success: true, context: 'registration' });
-      } catch (e) {
-        console.warn('[REGISTER] Could not emit otp_sent socket event (institution):', e);
+      if (global && global.io) {
+        try {
+          global.io.emit('otp_sent', { email: normalizedEmail, success: true, context: 'registration' });
+        } catch (e) {}
       }
-    } catch (emailErr) {
-      console.error('[REGISTER] Failed to send registration OTP (institution):', emailErr);
-      try {
-        if (global && global.io) global.io.emit('otp_sent', { email, success: false, error: emailErr.message || String(emailErr), context: 'registration' });
-      } catch (e) {
-        console.warn('[REGISTER] Could not emit otp_sent failure socket event (institution):', e);
-      }
+    } catch (otpErr) {
+      console.error('[REGISTER] Failed to generate/send OTP (institution):', otpErr.message || otpErr);
     }
-    res.status(201).json({ message: "Institution registered successfully" });
+
+    return res.status(201).json({
+      success: true,
+      message: "Institution registered successfully. OTP sent to your email!",
+      email: normalizedEmail,
+    });
   } catch (err) {
     console.error("registerInstitution error:", err);
-    res.status(500).json({ message: "Registration failed", error: err.message });
+    return res.status(500).json({ success: false, message: "Registration failed", error: err.message });
   }
 };
 

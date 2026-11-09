@@ -55,8 +55,22 @@ export default function RegisterInstitution() {
     } catch (err) {
       if (err.code === "ERR_NETWORK") {
         setError("Network Error: Cannot connect to the server (https://teacher-world.onrender.com). Please verify your internet connection or check backend status.")
+      } else if (err.response?.status === 400) {
+        setError(err.response.data?.message || "Invalid input. Please check your details.")
+      } else if (err.response?.status === 404) {
+        setError(err.response.data?.message || "Registration service temporarily unavailable (404). Please try again or check backend connection.")
+      } else if (err.response?.status === 409) {
+        setError(err.response.data?.message || "Email already registered. Please login instead.")
+      } else if (err.response?.status === 429) {
+        setError(err.response.data?.message || "Too many OTP requests. Please wait a while before trying again.")
+      } else if (err.response?.status === 500) {
+        setError(err.response.data?.message || "Server error. Please try again later.")
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message)
+      } else if (err.message) {
+        setError(err.message)
       } else {
-        setError(err.response?.data?.message || "Registration failed. Please try again.")
+        setError("Registration failed. Please try again.")
       }
     } finally {
       setLoading(false)

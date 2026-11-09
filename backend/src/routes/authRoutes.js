@@ -2,8 +2,13 @@ const express = require("express")
 const router = express.Router()
 const authController = require("../controllers/authController")
 
+// Teacher Registration (supports both /register-teacher and /register)
 router.post("/register-teacher", authController.registerTeacher)
+router.post("/register", authController.registerTeacher)
+
+// Institution Registration (supports both /register-institution and /register/institution)
 router.post("/register-institution", authController.registerInstitution)
+router.post("/register/institution", authController.registerInstitution)
 router.post("/verify-otp", authController.verifyOTP)
 router.post("/login", authController.login)
 router.post("/refresh", authController.refreshToken)
