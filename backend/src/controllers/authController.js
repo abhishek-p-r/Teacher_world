@@ -170,22 +170,47 @@ exports.verifyOTP = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email and OTP required" });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const cleanOtp = String(otp).trim();
+
+    // Check if user is already verified
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser && existingUser.verified) {
+      const accessToken = generateAccessToken(existingUser._id, existingUser.role);
+      const refreshToken = generateRefreshToken(existingUser._id);
+      return res.status(200).json({
+        success: true,
+        message: "Account is already verified. Logged in successfully!",
+        accessToken,
+        refreshToken,
+        user: {
+          id: existingUser._id,
+          _id: existingUser._id,
+          email: existingUser.email,
+          name: existingUser.name,
+          role: existingUser.role,
+          verified: true
+        }
+      });
+    }
 
     // Find the active OTP token for this email and purpose
     const otpToken = await OtpToken.findOne({
       email: normalizedEmail,
       used: false,
       purpose: "registration"
-    }).sort({ createdAt: -1 }); // Get the most recent one
+    }).sort({ createdAt: -1 });
 
     if (!otpToken) {
-      return res.status(400).json({ success: false, message: "No valid OTP found. Please request a new one." });
+      return res.status(400).json({
+        success: false,
+        message: "No active OTP found. Please click Resend OTP to receive a new code."
+      });
     }
 
     // Verify the OTP using the secure method
     try {
-      await otpToken.verifyOTP(otp);
+      await otpToken.verifyOTP(cleanOtp);
     } catch (verifyError) {
       return res.status(400).json({ success: false, message: verifyError.message });
     }
@@ -194,7 +219,6 @@ exports.verifyOTP = async (req, res) => {
     await User.updateOne({ email: normalizedEmail }, { verified: true });
     logActivity({ email: normalizedEmail, action: "verify.otp", req });
 
-    // After verification, generate and return access & refresh tokens so frontend can authenticate immediately
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found after verification" });
@@ -203,16 +227,68 @@ exports.verifyOTP = async (req, res) => {
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    res.json({
+    return res.status(200).json({
       success: true,
-      message: "OTP verified successfully",
+      message: "OTP verified successfully! Welcome to TeacherWorld.",
       accessToken,
       refreshToken,
-      user: { id: user._id, email: user.email, name: user.name, role: user.role }
+      user: {
+        id: user._id,
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        verified: true
+      }
     });
   } catch (err) {
     console.error("verifyOTP error:", err);
-    res.status(500).json({ success: false, message: "OTP verification failed", error: err.message });
+    return res.status(500).json({ success: false, message: "OTP verification failed", error: err.message });
+  }
+};
+
+// Resend OTP to the registered email
+exports.resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required to resend OTP" });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No registration found with this email" });
+    }
+
+    if (user.verified) {
+      return res.status(400).json({ success: false, message: "This account is already verified. Please login directly." });
+    }
+
+    const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
+    if (isRateLimited) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many requests. Please wait a couple minutes before requesting another OTP."
+      });
+    }
+
+    const otp = generateOTP();
+    await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
+    console.log(`[RESEND-OTP] Generated OTP for ${normalizedEmail}: ${otp}`);
+
+    sendOTPViaGmail(normalizedEmail, otp).catch(err => {
+      console.warn('[RESEND-OTP] Background send notice:', err.message);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `A fresh 6-digit OTP has been sent to ${normalizedEmail}!`,
+      email: normalizedEmail
+    });
+  } catch (err) {
+    console.error("resendOTP error:", err);
+    return res.status(500).json({ success: false, message: "Failed to resend OTP", error: err.message });
   }
 };
 

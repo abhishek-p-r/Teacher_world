@@ -153,6 +153,22 @@ export default function RegisterInstitution() {
     }
   }
 
+  const handleResendOTP = async () => {
+    setError("")
+    setSuccessMessage("")
+    setLoading(true)
+    try {
+      const response = await axios.post(`${API_URL}/auth/resend-otp`, {
+        email: formData.email.trim().toLowerCase(),
+      })
+      setSuccessMessage(response.data.message || `A fresh 6-digit OTP has been sent to ${formData.email}!`)
+    } catch (resendErr) {
+      setError(resendErr.response?.data?.message || "Failed to resend OTP. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div
       style={{
@@ -507,35 +523,54 @@ export default function RegisterInstitution() {
                   {loading ? "Verifying..." : "Verify & Complete"}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCurrentStep(1)
-                    setOtp("")
-                    setError("")
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    marginTop: "12px",
-                    background: "white",
-                    color: "#2d5016",
-                    border: "2px solid #2d5016",
-                    borderRadius: "8px",
-                    fontSize: "15px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.3s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = "#f0f5ed"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = "white"
-                  }}
-                >
-                  Back
-                </button>
+                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleResendOTP}
+                    style={{
+                      flex: 1,
+                      padding: "12px 14px",
+                      background: "#f0f5ed",
+                      color: "#2d5016",
+                      border: "2px solid #2d5016",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: loading ? "not-allowed" : "pointer",
+                      transition: "all 0.3s",
+                    }}
+                    onMouseEnter={(e) => !loading && (e.target.style.background = "#e2ecd9")}
+                    onMouseLeave={(e) => !loading && (e.target.style.background = "#f0f5ed")}
+                  >
+                    Resend OTP
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(1)
+                      setOtp("")
+                      setError("")
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "12px 14px",
+                      background: "white",
+                      color: "#666",
+                      border: "2px solid #ddd",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 0.3s",
+                    }}
+                    onMouseEnter={(e) => (e.target.style.background = "#f9f9f9")}
+                    onMouseLeave={(e) => (e.target.style.background = "white")}
+                  >
+                    Back / Edit
+                  </button>
+                </div>
               </form>
             )}
           </div>

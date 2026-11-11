@@ -1,5 +1,5 @@
-const mongoose = require("mongoose")
-const bcrypt = require("bcryptjs")
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const otpTokenSchema = new mongoose.Schema({
   email: {
@@ -20,7 +20,7 @@ const otpTokenSchema = new mongoose.Schema({
   attempts: {
     type: Number,
     default: 0,
-    max: 3, // Maximum 3 verification attempts
+    max: 5, // Allow up to 5 attempts before locking
   },
   used: {
     type: Boolean,
@@ -28,78 +28,89 @@ const otpTokenSchema = new mongoose.Schema({
   },
   expiresAt: {
     type: Date,
-    default: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    default: () => new Date(Date.now() + 15 * 60 * 1000), // 15 minutes validity
   },
   createdAt: {
     type: Date,
     default: Date.now,
   },
-})
-
-// Compound index for email + purpose to prevent duplicate active OTPs
-otpTokenSchema.index({ email: 1, purpose: 1, used: 1 }, { unique: true, partialFilterExpression: { used: false } })
+});
 
 // Auto-delete expired OTPs
-otpTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
+otpTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Compound index for active lookups
+otpTokenSchema.index({ email: 1, purpose: 1, used: 1 });
 
 // Instance method to verify OTP
 otpTokenSchema.methods.verifyOTP = async function(candidateOTP) {
   if (this.used) {
-    throw new Error('OTP has already been used')
+    throw new Error("OTP has already been used. Please request a new one.");
   }
 
-  if (this.attempts >= 3) {
-    throw new Error('Maximum verification attempts exceeded')
+  if (this.attempts >= 5) {
+    throw new Error("Maximum verification attempts exceeded. Please request a new OTP.");
   }
 
   if (Date.now() > this.expiresAt) {
-    throw new Error('OTP has expired')
+    throw new Error("OTP has expired. Please request a new OTP.");
   }
 
-  const isMatch = await bcrypt.compare(candidateOTP, this.otpHash)
+  const cleanCandidate = String(candidateOTP || "").trim();
+  if (!cleanCandidate) {
+    throw new Error("OTP cannot be empty.");
+  }
+
+  const isMatch = await bcrypt.compare(cleanCandidate, this.otpHash);
 
   if (!isMatch) {
-    this.attempts += 1
-    await this.save()
-    throw new Error('Invalid OTP')
+    this.attempts += 1;
+    await this.save();
+    const remaining = 5 - this.attempts;
+    throw new Error(`Invalid OTP. ${remaining > 0 ? `${remaining} attempts remaining.` : "Please request a new OTP."}`);
   }
 
   // Mark as used on successful verification
-  this.used = true
-  await this.save()
+  this.used = true;
+  await this.save();
 
-  return true
-}
+  return true;
+};
 
-// Static method to check rate limiting
+// Static method to check rate limiting (max 6 requests per 5 minutes)
 otpTokenSchema.statics.checkRateLimit = async function(email) {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const normalizedEmail = String(email || "").trim().toLowerCase();
   const recentOTPs = await this.countDocuments({
-    email,
-    createdAt: { $gte: oneHourAgo }
-  })
+    email: normalizedEmail,
+    createdAt: { $gte: fiveMinutesAgo },
+  });
 
-  return recentOTPs >= 3 // Max 3 OTPs per hour per email
-}
+  return recentOTPs >= 6;
+};
 
 // Static method to create hashed OTP
-otpTokenSchema.statics.createHashedOTP = async function(email, otp, purpose) {
-  const saltRounds = 12
-  const otpHash = await bcrypt.hash(otp, saltRounds)
+otpTokenSchema.statics.createHashedOTP = async function(email, otp, purpose = "registration") {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const cleanOtp = String(otp || "").trim();
+  const saltRounds = 10;
+  const otpHash = await bcrypt.hash(cleanOtp, saltRounds);
 
-  // Delete any existing unused OTP for this email and purpose
+  // Delete all previous unused OTPs for this email and purpose so only this new OTP is active
   await this.deleteMany({
-    email,
+    email: normalizedEmail,
     purpose,
-    used: false
-  })
+    used: false,
+  });
 
   return this.create({
-    email,
+    email: normalizedEmail,
     otpHash,
     purpose,
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-  })
-}
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes validity
+    attempts: 0,
+    used: false,
+  });
+};
 
-module.exports = mongoose.model("OtpToken", otpTokenSchema)
+module.exports = mongoose.model("OtpToken", otpTokenSchema);
