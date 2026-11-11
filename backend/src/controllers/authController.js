@@ -167,41 +167,44 @@ exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
-      return res.status(400).json({ message: "Email and OTP required" });
+      return res.status(400).json({ success: false, message: "Email and OTP required" });
     }
+
+    const normalizedEmail = email.toLowerCase().trim();
 
     // Find the active OTP token for this email and purpose
     const otpToken = await OtpToken.findOne({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       used: false,
       purpose: "registration"
     }).sort({ createdAt: -1 }); // Get the most recent one
 
     if (!otpToken) {
-      return res.status(400).json({ message: "No valid OTP found. Please request a new one." });
+      return res.status(400).json({ success: false, message: "No valid OTP found. Please request a new one." });
     }
 
     // Verify the OTP using the secure method
     try {
       await otpToken.verifyOTP(otp);
     } catch (verifyError) {
-      return res.status(400).json({ message: verifyError.message });
+      return res.status(400).json({ success: false, message: verifyError.message });
     }
 
     // OTP valid, mark user verified
-    await User.updateOne({ email }, { verified: true });
-    logActivity({ email, action: "verify.otp", req });
+    await User.updateOne({ email: normalizedEmail }, { verified: true });
+    logActivity({ email: normalizedEmail, action: "verify.otp", req });
 
     // After verification, generate and return access & refresh tokens so frontend can authenticate immediately
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(404).json({ message: "User not found after verification" });
+      return res.status(404).json({ success: false, message: "User not found after verification" });
     }
 
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
     res.json({
+      success: true,
       message: "OTP verified successfully",
       accessToken,
       refreshToken,
@@ -209,7 +212,7 @@ exports.verifyOTP = async (req, res) => {
     });
   } catch (err) {
     console.error("verifyOTP error:", err);
-    res.status(500).json({ message: "OTP verification failed", error: err.message });
+    res.status(500).json({ success: false, message: "OTP verification failed", error: err.message });
   }
 };
 

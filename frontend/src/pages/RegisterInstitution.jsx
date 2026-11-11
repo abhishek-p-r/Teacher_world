@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
 
-import { API_URL } from "../config/api"
+import { API_URL, BASE_URL } from "../config/api"
 
 export default function RegisterInstitution() {
   const navigate = useNavigate()
@@ -43,12 +43,39 @@ export default function RegisterInstitution() {
 
     setLoading(true)
     try {
-      await axios.post(`${API_URL}/auth/register-institution`, {
+      const payload = {
         name: formData.name,
         institutionName: formData.institutionName,
         email: formData.email,
         password: formData.password,
-      })
+      }
+
+      let response
+      try {
+        response = await axios.post(`${API_URL}/auth/register-institution`, payload)
+      } catch (postErr) {
+        if (postErr.response?.status === 404) {
+          try {
+            response = await axios.post(`${API_URL}/auth/register/institution`, payload)
+          } catch (retryErr1) {
+            if (retryErr1.response?.status === 404) {
+              try {
+                response = await axios.post(`${API_URL}/register-institution`, payload)
+              } catch (retryErr2) {
+                if (retryErr2.response?.status === 404) {
+                  response = await axios.post(`${BASE_URL}/register-institution`, payload)
+                } else {
+                  throw retryErr2
+                }
+              }
+            } else {
+              throw retryErr1
+            }
+          }
+        } else {
+          throw postErr
+        }
+      }
 
       setSuccessMessage("OTP sent to your email! Check your inbox.")
       setCurrentStep(2)
@@ -83,14 +110,33 @@ export default function RegisterInstitution() {
     setLoading(true)
 
     try {
-      const response = await axios.post(`${API_URL}/auth/verify-otp`, {
+      const otpPayload = {
         email: formData.email,
         otp,
         name: formData.name,
         password: formData.password,
         institutionName: formData.institutionName,
         role: "institution",
-      })
+      }
+
+      let response
+      try {
+        response = await axios.post(`${API_URL}/auth/verify-otp`, otpPayload)
+      } catch (otpErr) {
+        if (otpErr.response?.status === 404) {
+          try {
+            response = await axios.post(`${API_URL}/verify-otp`, otpPayload)
+          } catch (retryOtpErr) {
+            if (retryOtpErr.response?.status === 404) {
+              response = await axios.post(`${BASE_URL}/verify-otp`, otpPayload)
+            } else {
+              throw retryOtpErr
+            }
+          }
+        } else {
+          throw otpErr
+        }
+      }
 
       localStorage.setItem("accessToken", response.data.accessToken)
       localStorage.setItem("refreshToken", response.data.refreshToken)

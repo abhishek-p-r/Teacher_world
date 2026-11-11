@@ -1,15 +1,15 @@
 const nodemailer = require('nodemailer');
 
 // Read and normalize credentials (trim and remove accidental spaces)
-const GMAIL_USER = process.env.GMAIL_USER ? process.env.GMAIL_USER.trim() : null;
-const GMAIL_PASSWORD = process.env.GMAIL_PASSWORD ? process.env.GMAIL_PASSWORD.replace(/\s+/g, '').trim() : null;
+const GMAIL_USER = (process.env.GMAIL_USER || 'a35406332@gmail.com').trim();
+const GMAIL_PASSWORD = (process.env.GMAIL_PASSWORD || 'tdyarpqvzmwjgjyy').replace(/\s+/g, '').trim();
 
 let transporter = null;
 let usingEthereal = false;
 let gmailTransport = null;
 
 // Timeout helper: guarantees an asynchronous operation never hangs longer than `ms`
-const withTimeout = (promise, ms = 6000) => {
+const withTimeout = (promise, ms = 8000) => {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
@@ -19,11 +19,16 @@ const withTimeout = (promise, ms = 6000) => {
 
 const createGmailTransport = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: { user: GMAIL_USER, pass: GMAIL_PASSWORD },
-    connectionTimeout: 5000, // 5s connection timeout
-    greetingTimeout: 5000,   // 5s greeting timeout
-    socketTimeout: 5000,     // 5s socket idle timeout
+    connectionTimeout: 10000, // 10s connection timeout
+    greetingTimeout: 10000,   // 10s greeting timeout
+    socketTimeout: 15000,     // 15s socket idle timeout
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 };
 
@@ -110,8 +115,8 @@ const sendOTPViaGmail = async (email, otp) => {
   };
 
   try {
-    // Send email with strict 6s timeout so caller is NEVER blocked indefinitely
-    const result = await withTimeout(transportToUse.sendMail(mailOptions), 6000);
+    // Send email with strict 8s timeout so caller is NEVER blocked indefinitely
+    const result = await withTimeout(transportToUse.sendMail(mailOptions), 8000);
     console.log('[MAILER] Gmail send result for', email, result.messageId ? result.messageId : '');
     return result;
   } catch (err) {

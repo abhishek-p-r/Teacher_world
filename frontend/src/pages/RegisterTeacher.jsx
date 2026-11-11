@@ -4,8 +4,8 @@ import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
 
-import { API_URL } from "../config/api"
-console.log("[RegisterTeacher] API URL:", API_URL)
+import { API_URL, BASE_URL } from "../config/api"
+console.log("[RegisterTeacher] API URL:", API_URL, "BASE_URL:", BASE_URL)
 
 export default function RegisterTeacher() {
   const navigate = useNavigate()
@@ -53,19 +53,42 @@ export default function RegisterTeacher() {
 
     setLoading(true)
     try {
-      const url = `${API_URL}/auth/register-teacher`
-      console.log("[RegisterTeacher] Full API URL:", url)
-      console.log("[RegisterTeacher] Environment:", {
-        API_URL,
-        mode: import.meta.env.MODE,
-      })
-      console.log("[RegisterTeacher] Sending registration request to:", url)
-
-      const response = await axios.post(url, {
+      const payload = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
-      })
+      }
+
+      // Try primary endpoint first, then alias routes if 404 occurs
+      let response
+      try {
+        response = await axios.post(`${API_URL}/auth/register-teacher`, payload)
+      } catch (postErr) {
+        if (postErr.response?.status === 404) {
+          console.warn("[RegisterTeacher] /auth/register-teacher returned 404, retrying with /register-teacher...")
+          try {
+            response = await axios.post(`${API_URL}/register-teacher`, payload)
+          } catch (retryErr1) {
+            if (retryErr1.response?.status === 404) {
+              console.warn("[RegisterTeacher] /register-teacher returned 404, retrying with BASE_URL /register-teacher...")
+              try {
+                response = await axios.post(`${BASE_URL}/register-teacher`, payload)
+              } catch (retryErr2) {
+                if (retryErr2.response?.status === 404) {
+                  console.warn("[RegisterTeacher] BASE_URL returned 404, retrying with /auth/register...")
+                  response = await axios.post(`${API_URL}/auth/register`, payload)
+                } else {
+                  throw retryErr2
+                }
+              }
+            } else {
+              throw retryErr1
+            }
+          }
+        } else {
+          throw postErr
+        }
+      }
 
       console.log("[RegisterTeacher] Registration successful:", response.data)
       setSuccessMessage(response.data.message || "OTP sent to your email! Check your inbox and spam folder.")
@@ -116,13 +139,32 @@ export default function RegisterTeacher() {
     setLoading(true)
     try {
       console.log("[RegisterTeacher] Sending OTP verification...")
-      const response = await axios.post(`${API_URL}/auth/verify-otp`, {
+      const otpPayload = {
         email: formData.email.trim().toLowerCase(),
         otp: otp.trim(),
         name: formData.name.trim(),
         password: formData.password,
         role: "teacher",
-      })
+      }
+
+      let response
+      try {
+        response = await axios.post(`${API_URL}/auth/verify-otp`, otpPayload)
+      } catch (otpErr) {
+        if (otpErr.response?.status === 404) {
+          try {
+            response = await axios.post(`${API_URL}/verify-otp`, otpPayload)
+          } catch (retryOtpErr) {
+            if (retryOtpErr.response?.status === 404) {
+              response = await axios.post(`${BASE_URL}/verify-otp`, otpPayload)
+            } else {
+              throw retryOtpErr
+            }
+          }
+        } else {
+          throw otpErr
+        }
+      }
 
       console.log("[RegisterTeacher] OTP verification successful:", response.data)
 

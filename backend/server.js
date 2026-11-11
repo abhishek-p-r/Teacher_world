@@ -169,6 +169,29 @@ app.get("/api/health", (req, res) => {
   })
 })
 
+// Build & deployment version confirmation endpoint
+app.get(["/api/version", "/version"], (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: "teacher-world-backend",
+    version: "2.1.0",
+    build: "fix-404-registration-email-timeout",
+    deployedAt: "2026-11-09",
+    uptime: Math.round(process.uptime()),
+    endpoints: [
+      "/api/auth/register-teacher",
+      "/api/auth/register",
+      "/api/auth/verify-otp",
+      "/api/auth/login",
+      "/api/health",
+      "/api/jobs",
+    ],
+  })
+})
+
+// Ensure preflight requests succeed across all routes
+app.options("*", cors(corsOptions))
+
 // MongoDB Connection Logic (supports MONGODB_URI and MONGO_URI)
 const mongoUri =
   process.env.MONGODB_URI ||
@@ -208,8 +231,8 @@ const connectWithRetry = async () => {
 connectWithRetry()
 
 // API Routes - mounted with flexible prefixes to prevent 404 errors
-app.use(["/api/auth", "/auth", "/api"], require("./src/routes/authRoutes"))
-app.use(["/api/auth", "/auth", "/api"], require("./src/routes/socialAuthRoutes"))
+app.use(["/api/auth", "/auth", "/api", "/"], require("./src/routes/authRoutes"))
+app.use(["/api/auth", "/auth", "/api", "/"], require("./src/routes/socialAuthRoutes"))
 app.use(["/api/jobs", "/jobs"], require("./src/routes/jobRoutes"))
 app.use(["/api/applications", "/applications"], require("./src/routes/applicationRoutes"))
 app.use(["/api/messages", "/messages"], require("./src/routes/messageRoutes"))
