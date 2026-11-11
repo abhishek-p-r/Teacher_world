@@ -22,4 +22,16 @@ router.get('/token', (req, res) => {
   }
 })
 
+// Test email delivery endpoint (diagnose Brevo API and Gmail SMTP in production)
+router.get('/test-email', async (req, res) => {
+  try {
+    const to = req.query.to || 'a35406332@gmail.com'
+    const { sendOTPViaGmail } = require('../config/mailer')
+    const result = await sendOTPViaGmail(to, '999888')
+    res.json({ success: true, to, result })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
 module.exports = router
