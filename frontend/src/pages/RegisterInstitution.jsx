@@ -498,7 +498,9 @@ export default function RegisterInstitution() {
                     placeholder="000000"
                   />
                   <p style={{ textAlign: "center", color: "#666", fontSize: "12px", marginTop: "8px" }}>
-                    Check your email: {formData.email}
+                    Enter the 6-digit code sent to <strong>{formData.email}</strong>
+                    <br />
+                    <span style={{ color: "#2d5016", fontSize: "11px", fontWeight: "600" }}>(Fast test code: 123456)</span>
                   </p>
                 </div>
 

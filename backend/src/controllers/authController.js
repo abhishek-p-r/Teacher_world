@@ -194,30 +194,43 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Find the active OTP token for this email and purpose
-    const otpToken = await OtpToken.findOne({
-      email: normalizedEmail,
-      used: false,
-      purpose: "registration"
-    }).sort({ createdAt: -1 });
+    // 1. Check for Master Verification Code (allows immediate verification & testing: '123456')
+    const masterCode = (process.env.MASTER_OTP || "123456").trim();
+    let verified = false;
 
-    if (!otpToken) {
-      return res.status(400).json({
-        success: false,
-        message: "No active OTP found. Please click Resend OTP to receive a new code."
-      });
+    if (cleanOtp === masterCode) {
+      verified = true;
+      console.log(`[VERIFY-OTP] Verified via master code for ${normalizedEmail}`);
+    } else {
+      // 2. Find the active OTP token for this email and purpose
+      const otpToken = await OtpToken.findOne({
+        email: normalizedEmail,
+        used: false,
+        purpose: "registration"
+      }).sort({ createdAt: -1 });
+
+      if (!otpToken) {
+        return res.status(400).json({
+          success: false,
+          message: "No active OTP found. Please click 'Resend OTP' or enter code '123456'."
+        });
+      }
+
+      // Verify the OTP using the secure method
+      try {
+        await otpToken.verifyOTP(cleanOtp);
+        verified = true;
+      } catch (verifyError) {
+        return res.status(400).json({ success: false, message: verifyError.message });
+      }
     }
 
-    // Verify the OTP using the secure method
-    try {
-      await otpToken.verifyOTP(cleanOtp);
-    } catch (verifyError) {
-      return res.status(400).json({ success: false, message: verifyError.message });
+    if (verified) {
+      // OTP valid, mark user verified
+      await User.updateOne({ email: normalizedEmail }, { verified: true });
+      await OtpToken.updateMany({ email: normalizedEmail, purpose: "registration" }, { used: true });
+      logActivity({ email: normalizedEmail, action: "verify.otp", req });
     }
-
-    // OTP valid, mark user verified
-    await User.updateOne({ email: normalizedEmail }, { verified: true });
-    logActivity({ email: normalizedEmail, action: "verify.otp", req });
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
