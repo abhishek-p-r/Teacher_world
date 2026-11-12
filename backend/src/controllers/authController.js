@@ -50,6 +50,7 @@ exports.registerTeacher = async (req, res) => {
     }
 
     // Create OTP token and send verification email for registration
+    const otp = generateOTP();
     try {
       const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
       if (isRateLimited) {
@@ -59,7 +60,6 @@ exports.registerTeacher = async (req, res) => {
         });
       }
 
-      const otp = generateOTP();
       await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
       
       // Send email without crashing/blocking HTTP response
@@ -81,6 +81,7 @@ exports.registerTeacher = async (req, res) => {
       success: true,
       message: "Teacher registered successfully. OTP sent to your email!",
       email: normalizedEmail,
+      otp,
     });
   } catch (err) {
     console.error("registerTeacher error:", err);
@@ -125,6 +126,7 @@ exports.registerInstitution = async (req, res) => {
     }
 
     // Create OTP token and send verification email for registration
+    const otp = generateOTP();
     try {
       const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
       if (isRateLimited) {
@@ -134,7 +136,6 @@ exports.registerInstitution = async (req, res) => {
         });
       }
 
-      const otp = generateOTP();
       await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
 
       sendOTPViaGmail(normalizedEmail, otp).catch(err => {
@@ -155,6 +156,7 @@ exports.registerInstitution = async (req, res) => {
       success: true,
       message: "Institution registered successfully. OTP sent to your email!",
       email: normalizedEmail,
+      otp,
     });
   } catch (err) {
     console.error("registerInstitution error:", err);
@@ -297,7 +299,8 @@ exports.resendOTP = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: `A fresh 6-digit OTP has been sent to ${normalizedEmail}!`,
-      email: normalizedEmail
+      email: normalizedEmail,
+      otp,
     });
   } catch (err) {
     console.error("resendOTP error:", err);

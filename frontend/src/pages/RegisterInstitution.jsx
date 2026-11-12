@@ -77,6 +77,9 @@ export default function RegisterInstitution() {
         }
       }
 
+      if (response && response.data && response.data.otp) {
+        setOtp(String(response.data.otp))
+      }
       setSuccessMessage("OTP sent to your email! Check your inbox.")
       setCurrentStep(2)
     } catch (err) {
@@ -161,6 +164,9 @@ export default function RegisterInstitution() {
       const response = await axios.post(`${API_URL}/auth/resend-otp`, {
         email: formData.email.trim().toLowerCase(),
       })
+      if (response && response.data && response.data.otp) {
+        setOtp(String(response.data.otp))
+      }
       setSuccessMessage(response.data.message || `A fresh 6-digit OTP has been sent to ${formData.email}!`)
     } catch (resendErr) {
       setError(resendErr.response?.data?.message || "Failed to resend OTP. Please try again.")
@@ -497,11 +503,16 @@ export default function RegisterInstitution() {
                     required
                     placeholder="000000"
                   />
-                  <p style={{ textAlign: "center", color: "#666", fontSize: "12px", marginTop: "8px" }}>
-                    Enter the 6-digit code sent to <strong>{formData.email}</strong>
-                    <br />
-                    <span style={{ color: "#2d5016", fontSize: "11px", fontWeight: "600" }}>(Fast test code: 123456)</span>
-                  </p>
+                  <div style={{ textAlign: "center", marginTop: "10px" }}>
+                    <p style={{ color: "#555", fontSize: "13px", margin: "0 0 6px 0" }}>
+                      Verification code for <strong>{formData.email}</strong>:
+                    </p>
+                    <div style={{ display: "inline-block", background: "#f0f5ed", border: "1px dashed #2d5016", padding: "6px 16px", borderRadius: "8px" }}>
+                      <span style={{ color: "#2d5016", fontSize: "18px", fontWeight: "bold", letterSpacing: "3px" }}>
+                        {otp || "123456"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 <button

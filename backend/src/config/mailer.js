@@ -15,7 +15,7 @@ let usingEthereal = false;
 let gmailTransport = null;
 
 // Timeout helper: guarantees an asynchronous operation never hangs longer than `ms`
-const withTimeout = (promise, ms = 8000) => {
+const withTimeout = (promise, ms = 3000) => {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
@@ -30,9 +30,9 @@ const createGmailTransport = () => {
     port: 465,
     secure: true,
     auth: { user: GMAIL_USER, pass: GMAIL_PASSWORD },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    connectionTimeout: 2500,
+    greetingTimeout: 2500,
+    socketTimeout: 3000,
     tls: {
       rejectUnauthorized: false
     }
@@ -93,7 +93,7 @@ const sendViaBrevoAPI = async ({ to, subject, htmlContent }) => {
         'api-key': BREVO_API_KEY,
         'content-type': 'application/json',
       },
-      timeout: 6000,
+      timeout: 2500,
     });
 
     if (response.status === 200 || response.status === 201) {
