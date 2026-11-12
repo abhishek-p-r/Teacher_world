@@ -51,37 +51,38 @@ exports.registerTeacher = async (req, res) => {
 
     // Create OTP token and send verification email for registration
     const otp = generateOTP();
-    try {
-      const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
-      if (isRateLimited) {
-        return res.status(429).json({
-          success: false,
-          message: "Too many OTP requests. Please wait a while before requesting again."
-        });
-      }
-
-      await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
-      
-      // Send email without crashing/blocking HTTP response
-      sendOTPViaGmail(normalizedEmail, otp).catch(err => {
-        console.warn('[REGISTER] Async OTP send notice (teacher):', err.message);
+    const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
+    if (isRateLimited) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many OTP requests. Please wait a while before requesting again."
       });
+    }
 
-      logActivity({ userId: user._id, action: "register.teacher", req });
-      if (global && global.io) {
-        try {
-          global.io.emit('otp_sent', { email: normalizedEmail, success: true, context: 'registration' });
-        } catch (e) {}
-      }
-    } catch (otpErr) {
-      console.error('[REGISTER] Failed to generate/send OTP (teacher):', otpErr.message || otpErr);
+    await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
+    
+    // Send email using verified Gmail SMTP / Brevo fallback
+    const mailResult = await sendOTPViaGmail(normalizedEmail, otp);
+    if (!mailResult || !mailResult.success) {
+      console.error('[REGISTER] Email delivery failed for', normalizedEmail, mailResult?.error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Please verify that your email address is correct and try again.",
+        error: mailResult?.error || "Mail delivery error"
+      });
+    }
+
+    logActivity({ userId: user._id, action: "register.teacher", req });
+    if (global && global.io) {
+      try {
+        global.io.emit('otp_sent', { email: normalizedEmail, success: true, context: 'registration' });
+      } catch (e) {}
     }
 
     return res.status(201).json({
       success: true,
-      message: "Teacher registered successfully. OTP sent to your email!",
+      message: "Teacher registered successfully! A 6-digit verification code has been sent to your email. Please check your inbox and spam folder.",
       email: normalizedEmail,
-      otp,
     });
   } catch (err) {
     console.error("registerTeacher error:", err);
@@ -127,36 +128,37 @@ exports.registerInstitution = async (req, res) => {
 
     // Create OTP token and send verification email for registration
     const otp = generateOTP();
-    try {
-      const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
-      if (isRateLimited) {
-        return res.status(429).json({
-          success: false,
-          message: "Too many OTP requests. Please wait a while before requesting again."
-        });
-      }
-
-      await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
-
-      sendOTPViaGmail(normalizedEmail, otp).catch(err => {
-        console.warn('[REGISTER] Async OTP send notice (institution):', err.message);
+    const isRateLimited = await OtpToken.checkRateLimit(normalizedEmail);
+    if (isRateLimited) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many OTP requests. Please wait a while before requesting again."
       });
+    }
 
-      logActivity({ userId: user._id, action: "register.institution", req });
-      if (global && global.io) {
-        try {
-          global.io.emit('otp_sent', { email: normalizedEmail, success: true, context: 'registration' });
-        } catch (e) {}
-      }
-    } catch (otpErr) {
-      console.error('[REGISTER] Failed to generate/send OTP (institution):', otpErr.message || otpErr);
+    await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
+
+    const mailResult = await sendOTPViaGmail(normalizedEmail, otp);
+    if (!mailResult || !mailResult.success) {
+      console.error('[REGISTER-INSTITUTION] Email delivery failed for', normalizedEmail, mailResult?.error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Please verify that your email address is correct and try again.",
+        error: mailResult?.error || "Mail delivery error"
+      });
+    }
+
+    logActivity({ userId: user._id, action: "register.institution", req });
+    if (global && global.io) {
+      try {
+        global.io.emit('otp_sent', { email: normalizedEmail, success: true, context: 'registration' });
+      } catch (e) {}
     }
 
     return res.status(201).json({
       success: true,
-      message: "Institution registered successfully. OTP sent to your email!",
+      message: "Institution registered successfully! A 6-digit verification code has been sent to your email. Please check your inbox and spam folder.",
       email: normalizedEmail,
-      otp,
     });
   } catch (err) {
     console.error("registerInstitution error:", err);
@@ -169,84 +171,68 @@ exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
-      return res.status(400).json({ success: false, message: "Email and OTP required" });
+      return res.status(400).json({ success: false, message: "Email and 6-digit verification code are required." });
     }
 
     const normalizedEmail = String(email).toLowerCase().trim();
     const cleanOtp = String(otp).trim();
 
-    // Check if user is already verified
-    const existingUser = await User.findOne({ email: normalizedEmail });
-    if (existingUser && existingUser.verified) {
-      const accessToken = generateAccessToken(existingUser._id, existingUser.role);
-      const refreshToken = generateRefreshToken(existingUser._id);
-      return res.status(200).json({
-        success: true,
-        message: "Account is already verified. Logged in successfully!",
-        accessToken,
-        refreshToken,
-        user: {
-          id: existingUser._id,
-          _id: existingUser._id,
-          email: existingUser.email,
-          name: existingUser.name,
-          role: existingUser.role,
-          verified: true
-        }
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      return res.status(400).json({ success: false, message: "Please enter a valid 6-digit numeric verification code." });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No registered account found with this email. Please register first." });
+    }
+
+    // If user is already verified, do NOT verify random numbers; instruct to login
+    if (user.verified) {
+      return res.status(400).json({
+        success: false,
+        message: "Your account is already verified. Please go to the login page to sign in."
       });
     }
 
-    // 1. Check for Master Verification Code (allows immediate verification & testing: '123456')
-    const masterCode = (process.env.MASTER_OTP || "123456").trim();
-    let verified = false;
+    // Find the latest active OTP token for this email and purpose
+    const otpToken = await OtpToken.findOne({
+      email: normalizedEmail,
+      used: false,
+      purpose: "registration"
+    }).sort({ createdAt: -1 });
 
-    if (cleanOtp === masterCode) {
-      verified = true;
-      console.log(`[VERIFY-OTP] Verified via master code for ${normalizedEmail}`);
-    } else {
-      // 2. Find the active OTP token for this email and purpose
-      const otpToken = await OtpToken.findOne({
-        email: normalizedEmail,
-        used: false,
-        purpose: "registration"
-      }).sort({ createdAt: -1 });
-
-      if (!otpToken) {
-        return res.status(400).json({
-          success: false,
-          message: "No active OTP found. Please click 'Resend OTP' or enter code '123456'."
-        });
-      }
-
-      // Verify the OTP using the secure method
-      try {
-        await otpToken.verifyOTP(cleanOtp);
-        verified = true;
-      } catch (verifyError) {
-        return res.status(400).json({ success: false, message: verifyError.message });
-      }
+    if (!otpToken) {
+      return res.status(400).json({
+        success: false,
+        message: "No active verification code found or your code has expired. Please click 'Resend OTP' to receive a new code."
+      });
     }
 
-    if (verified) {
-      // OTP valid, mark user verified
-      await User.updateOne({ email: normalizedEmail }, { verified: true });
-      await OtpToken.updateMany({ email: normalizedEmail, purpose: "registration" }, { used: true });
-      logActivity({ email: normalizedEmail, action: "verify.otp", req });
+    // Strictly verify OTP using bcrypt hash comparison - ONLY the real email OTP will match
+    try {
+      await otpToken.verifyOTP(cleanOtp);
+    } catch (verifyError) {
+      return res.status(400).json({
+        success: false,
+        message: verifyError.message || "Invalid verification code. Please check your email and try again."
+      });
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found after verification" });
-    }
+    // Mark user verified and all registration tokens used
+    await User.updateOne({ _id: user._id }, { verified: true });
+    await OtpToken.updateMany({ email: normalizedEmail, purpose: "registration" }, { used: true });
+    logActivity({ userId: user._id, email: normalizedEmail, action: "verify.otp", req });
 
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
     return res.status(200).json({
       success: true,
-      message: "OTP verified successfully! Welcome to TeacherWorld.",
+      message: "Email verified successfully! Welcome to TeacherWorld.",
       accessToken,
       refreshToken,
+      verified: true,
       user: {
         id: user._id,
         _id: user._id,
@@ -290,17 +276,21 @@ exports.resendOTP = async (req, res) => {
 
     const otp = generateOTP();
     await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
-    console.log(`[RESEND-OTP] Generated OTP for ${normalizedEmail}: ${otp}`);
 
-    sendOTPViaGmail(normalizedEmail, otp).catch(err => {
-      console.warn('[RESEND-OTP] Background send notice:', err.message);
-    });
+    const mailResult = await sendOTPViaGmail(normalizedEmail, otp);
+    if (!mailResult || !mailResult.success) {
+      console.error('[RESEND-OTP] Email delivery failed for', normalizedEmail, mailResult?.error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Please try again.",
+        error: mailResult?.error || "Mail delivery error"
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      message: `A fresh 6-digit OTP has been sent to ${normalizedEmail}!`,
+      message: `A fresh 6-digit verification code has been sent to ${normalizedEmail}! Please check your inbox and spam folder.`,
       email: normalizedEmail,
-      otp,
     });
   } catch (err) {
     console.error("resendOTP error:", err);

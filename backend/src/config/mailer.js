@@ -6,16 +6,12 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY ? process.env.BREVO_API_KEY.trim
 const BREVO_SENDER_EMAIL = (process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || 'a35406332@gmail.com').trim();
 const BREVO_SENDER_NAME = (process.env.BREVO_SENDER_NAME || 'TeacherWorld').trim();
 
-// Gmail Configuration (Direct SSL SMTP fallback)
+// Gmail Configuration (Direct SSL SMTP)
 const GMAIL_USER = (process.env.GMAIL_USER || 'a35406332@gmail.com').trim();
 const GMAIL_PASSWORD = (process.env.GMAIL_PASSWORD || 'tdyarpqvzmwjgjyy').replace(/\s+/g, '').trim();
 
-let transporter = null;
-let usingEthereal = false;
-let gmailTransport = null;
-
-// Timeout helper: guarantees an asynchronous operation never hangs longer than `ms`
-const withTimeout = (promise, ms = 3000) => {
+// Timeout helper: guarantees an asynchronous operation never hangs indefinitely
+const withTimeout = (promise, ms = 12000) => {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error(`Operation timed out after ${ms}ms`)), ms);
@@ -23,58 +19,44 @@ const withTimeout = (promise, ms = 3000) => {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 };
 
-// Create direct SSL transport for Gmail on Port 465 (most reliable from cloud containers)
-const createGmailTransport = () => {
+// Create direct SSL transport for Gmail on Port 465
+const createGmailTransport465 = () => {
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
     auth: { user: GMAIL_USER, pass: GMAIL_PASSWORD },
-    connectionTimeout: 2500,
-    greetingTimeout: 2500,
-    socketTimeout: 3000,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
     tls: {
       rejectUnauthorized: false
     }
   });
 };
 
-const initTransporter = async () => {
-  if (GMAIL_USER && GMAIL_PASSWORD) {
-    try {
-      gmailTransport = createGmailTransport();
-      await withTimeout(gmailTransport.verify(), 5000);
-      transporter = gmailTransport;
-      usingEthereal = false;
-      console.log('[MAILER] Gmail SMTP transporter ready');
-      return;
-    } catch (gmailErr) {
-      console.warn('[MAILER] Gmail verification note:', gmailErr.message || gmailErr);
-      gmailTransport = null;
-      transporter = null;
+// Create STARTTLS transport for Gmail on Port 587
+const createGmailTransport587 = () => {
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: { user: GMAIL_USER, pass: GMAIL_PASSWORD },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    tls: {
+      rejectUnauthorized: false
     }
-  }
-
-  // Fallback to local JSON transport in test/offline environments
-  try {
-    transporter = nodemailer.createTransport({ jsonTransport: true });
-    usingEthereal = false;
-    console.log('[MAILER] Local JSON transport ready as standby');
-  } catch (fallbackErr) {
-    console.error('[MAILER] Failed to create standby transport:', fallbackErr);
-    transporter = null;
-  }
+  });
 };
 
-initTransporter().catch(err => {
-  console.warn('[MAILER] Background initTransporter note:', err.message);
-});
+let defaultTransporter = createGmailTransport465();
 
 /**
  * Send email via Brevo REST API (HTTPS Port 443)
- * Completely immune to cloud hosting SMTP port throttling / STARTTLS timeouts
  */
-const sendViaBrevoAPI = async ({ to, subject, htmlContent }) => {
+const sendViaBrevoAPI = async ({ to, subject, htmlContent, textContent }) => {
   if (!BREVO_API_KEY) {
     return { success: false, reason: 'BREVO_API_KEY not configured' };
   }
@@ -84,6 +66,7 @@ const sendViaBrevoAPI = async ({ to, subject, htmlContent }) => {
     to: [{ email: to.toLowerCase().trim() }],
     subject,
     htmlContent,
+    textContent: textContent || subject,
   };
 
   try {
@@ -93,7 +76,7 @@ const sendViaBrevoAPI = async ({ to, subject, htmlContent }) => {
         'api-key': BREVO_API_KEY,
         'content-type': 'application/json',
       },
-      timeout: 2500,
+      timeout: 5000,
     });
 
     if (response.status === 200 || response.status === 201) {
@@ -103,68 +86,106 @@ const sendViaBrevoAPI = async ({ to, subject, htmlContent }) => {
     return { success: false, reason: `Brevo API HTTP status ${response.status}` };
   } catch (err) {
     const errorDetails = err.response?.data?.message || err.message;
-    console.warn(`[MAILER] Brevo API sending notice for ${to} (${errorDetails}). Trying SMTP fallback...`);
+    console.warn(`[MAILER] Brevo API sending note for ${to} (${errorDetails}). Trying SMTP fallback...`);
     return { success: false, reason: errorDetails };
   }
 };
 
 /**
- * Send OTP with dual-delivery architecture:
- * 1. Brevo REST API (Fast HTTPS, zero port blocks)
- * 2. Gmail SMTP Direct SSL (Port 465)
- * 3. Log to console fallback (Never fails the HTTP registration request)
+ * Send OTP via Gmail Direct SSL / STARTTLS / Brevo
  */
 const sendOTPViaGmail = async (email, otp) => {
-  const normalizedEmail = email.toLowerCase().trim();
-  const subject = 'TeacherWorld - Email Verification OTP';
+  const normalizedEmail = String(email || '').toLowerCase().trim();
+  const cleanOtp = String(otp || '').trim();
+  const subject = `TeacherWorld - Your Verification Code is ${cleanOtp}`;
+  const textContent = `Welcome to TeacherWorld!\n\nYour 6-digit email verification code is: ${cleanOtp}\n\nThis code will expire in 15 minutes.\nIf you did not request this code, please ignore this email.`;
   const htmlContent =
-    '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">' +
-    '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">' +
-    '<h1 style="color: white; margin: 0;">TeacherWorld</h1>' +
+    '<div style="font-family: Arial, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">' +
+    '<div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 24px; text-align: center;">' +
+    '<h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">TeacherWorld</h1>' +
+    '<p style="color: #e0e7ff; margin: 8px 0 0 0; font-size: 15px;">Empowering Educators & Institutions</p>' +
     '</div>' +
-    '<div style="padding: 30px; background: #f9f9f9;">' +
-    '<h2 style="color: #333; margin-top: 0;">Email Verification</h2>' +
-    '<p style="color: #666; font-size: 16px;">Your OTP for TeacherWorld registration is:</p>' +
-    '<div style="background: white; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0; border: 2px solid #667eea;">' +
-    `<h1 style="color: #667eea; letter-spacing: 5px; margin: 0; font-size: 32px;">${otp}</h1>` +
+    '<div style="padding: 36px 32px; background: #ffffff;">' +
+    '<h2 style="color: #1e293b; margin: 0 0 12px 0; font-size: 20px; font-weight: 600;">Email Verification Required</h2>' +
+    '<p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">' +
+    'Thank you for registering with TeacherWorld. To complete your registration and activate your account, please enter the 6-digit verification code below:' +
+    '</p>' +
+    '<div style="background: #f8fafc; padding: 24px; text-align: center; border-radius: 10px; margin: 24px 0; border: 2px dashed #6366f1;">' +
+    '<span style="color: #4338ca; letter-spacing: 8px; font-size: 36px; font-weight: 800; font-family: monospace; display: inline-block;">' +
+    cleanOtp +
+    '</span>' +
     '</div>' +
-    '<p style="color: #666; font-size: 14px;">This OTP will expire in <strong>10 minutes</strong>.</p>' +
-    '<p style="color: #999; font-size: 12px; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">If you didn\'t request this, please ignore this email.</p>' +
+    '<div style="background: #f1f5f9; padding: 14px 18px; border-radius: 8px; margin: 20px 0;">' +
+    '<p style="color: #334155; font-size: 13px; margin: 0; line-height: 1.5;">' +
+    '⏳ <strong>Security Notice:</strong> This code is valid for <strong>15 minutes</strong>. Never share this code with anyone.' +
+    '</p>' +
+    '</div>' +
+    '<p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 24px 0 0 0; border-top: 1px solid #f1f5f9; padding-top: 20px;">' +
+    'If you did not attempt to register on TeacherWorld, please disregard this email or contact support.' +
+    '</p>' +
+    '</div>' +
+    '<div style="background: #f8fafc; padding: 18px 24px; text-align: center; border-top: 1px solid #e2e8f0;">' +
+    '<p style="color: #94a3b8; font-size: 12px; margin: 0;">© 2026 TeacherWorld. All rights reserved.</p>' +
     '</div>' +
     '</div>';
 
-  // 1. Try Brevo REST API first
-  const brevoRes = await sendViaBrevoAPI({ to: normalizedEmail, subject, htmlContent });
-  if (brevoRes.success) {
-    return brevoRes;
-  }
+  const mailOptions = {
+    from: `"TeacherWorld Support" <${GMAIL_USER}>`,
+    to: normalizedEmail,
+    subject,
+    text: textContent,
+    html: htmlContent,
+  };
 
-  // 2. Fall back to Gmail Direct SSL SMTP (Port 465)
+  let lastError = null;
+
+  // 1. Try Gmail Direct SSL (Port 465)
   if (GMAIL_USER && GMAIL_PASSWORD) {
-    let transportToUse = gmailTransport;
-    if (!transportToUse) {
-      transportToUse = createGmailTransport();
+    try {
+      const t465 = createGmailTransport465();
+      const result = await withTimeout(t465.sendMail(mailOptions), 10000);
+      console.log(`[MAILER] OTP successfully sent via Gmail Port 465 to ${normalizedEmail} (MessageId: ${result.messageId})`);
+      return { success: true, messageId: result.messageId, provider: 'gmail-smtp-465' };
+    } catch (err465) {
+      console.warn(`[MAILER] Gmail Port 465 attempt note (${err465.message}). Trying Port 587...`);
+      lastError = err465;
     }
 
-    const mailOptions = {
-      from: `"TeacherWorld" <${GMAIL_USER}>`,
-      to: normalizedEmail,
-      subject,
-      html: htmlContent,
-    };
-
+    // 2. Try Gmail STARTTLS (Port 587)
     try {
-      const result = await withTimeout(transportToUse.sendMail(mailOptions), 8000);
-      console.log(`[MAILER] Email successfully sent via Gmail SMTP to ${normalizedEmail} (MessageId: ${result.messageId || 'ok'})`);
-      return { success: true, messageId: result.messageId, provider: 'gmail-smtp' };
-    } catch (gmailErr) {
-      console.warn(`[MAILER] Gmail SMTP send timed out/failed for ${normalizedEmail} (${gmailErr.message}).`);
+      const t587 = createGmailTransport587();
+      const result = await withTimeout(t587.sendMail(mailOptions), 10000);
+      console.log(`[MAILER] OTP successfully sent via Gmail Port 587 to ${normalizedEmail} (MessageId: ${result.messageId})`);
+      return { success: true, messageId: result.messageId, provider: 'gmail-smtp-587' };
+    } catch (err587) {
+      console.warn(`[MAILER] Gmail Port 587 attempt note (${err587.message}). Trying Brevo API...`);
+      lastError = err587;
     }
   }
 
-  // 3. Fallback console logging
-  console.log(`[OTP-FALLBACK] Verification OTP for ${normalizedEmail}: ${otp}`);
-  return { success: true, messageId: 'simulated-fallback', fallback: true };
+  // 3. Try Brevo REST API fallback
+  if (BREVO_API_KEY) {
+    try {
+      const brevoRes = await sendViaBrevoAPI({
+        to: normalizedEmail,
+        subject,
+        htmlContent,
+        textContent,
+      });
+      if (brevoRes.success) {
+        return brevoRes;
+      }
+      lastError = new Error(brevoRes.reason || 'Brevo API error');
+    } catch (brevoErr) {
+      lastError = brevoErr;
+    }
+  }
+
+  console.error(`[MAILER] ALL email delivery providers failed for ${normalizedEmail}:`, lastError?.message || lastError);
+  return {
+    success: false,
+    error: lastError ? lastError.message : 'No email transport succeeded'
+  };
 };
 
 const sendOTP = async (email, otp) => {
@@ -172,71 +193,63 @@ const sendOTP = async (email, otp) => {
 };
 
 const sendStatusUpdate = async (email, jobTitle, status, notes = '', institutionName = '', teacherName = '') => {
-  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedEmail = String(email || '').toLowerCase().trim();
   const safeNotes = notes
     ? notes
         .replace(/&/g, '&amp;')
         .replace(/</g, '<')
         .replace(/>/g, '>')
-        .replace(/"/g, '"')
+        .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;')
         .replace(/\n/g, '<br>')
     : '';
 
-  const subject = 'Application Status Update - ' + jobTitle;
+  const subject = `Application Status Update - ${jobTitle}`;
   const htmlContent =
-    '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">' +
-    '<div style="background-color: #0070f3; padding: 15px; text-align: center;">' +
+    `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">` +
+    `<div style="background-color: #4f46e5; padding: 20px; text-align: center;">` +
     `<h1 style="color: #fff; font-size: 24px; margin: 0;">TeacherWorld</h1>` +
-    '</div>' +
-    '<div style="padding: 30px; background: #f7f7f7;">' +
-    `<h2 style="color: #1a5490; margin-top: 0;">Application Status Update</h2>` +
+    `</div>` +
+    `<div style="padding: 30px; background: #f8fafc;">` +
+    `<h2 style="color: #1e293b; margin-top: 0;">Application Status Update</h2>` +
     `<p><strong>Dear ${teacherName || 'Teacher'},</strong></p>` +
     `<p>Your application for the position of <strong>${jobTitle}</strong> at <strong>${institutionName || 'the institution'}</strong> has been updated.</p>` +
-    '<div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #0070f3;">' +
-    `<p style="margin: 0;"><strong>Current Status:</strong> <span style="color: #0070f3; text-transform: uppercase; font-weight: bold;">${status}</span></p>` +
-    '</div>' +
+    `<div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #4f46e5;">` +
+    `<p style="margin: 0;"><strong>Current Status:</strong> <span style="color: #4f46e5; text-transform: uppercase; font-weight: bold;">${status}</span></p>` +
+    `</div>` +
     (safeNotes ? `<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;"><p style="margin: 0;"><strong>Additional Notes:</strong></p><p style="margin: 10px 0 0 0;">${safeNotes}</p></div>` : '') +
-    '<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">' +
-    '<p style="color: #666; font-size: 14px; margin: 0;">Log in to your TeacherWorld account for more details and to track your application progress.</p>' +
-    '</div>' +
-    '</div>' +
-    '<div style="background: #333; padding: 15px; text-align: center;">' +
-    '<p style="color: #999; font-size: 12px; margin: 0;">© 2026 TeacherWorld. All rights reserved.</p>' +
-    '</div>' +
-    '</div>';
+    `<p style="color: #64748b; font-size: 14px; margin-top: 24px;">Log in to your TeacherWorld account to view complete details.</p>` +
+    `</div>` +
+    `</div>`;
 
-  // 1. Try Brevo REST API first
-  const brevoRes = await sendViaBrevoAPI({ to: normalizedEmail, subject, htmlContent });
-  if (brevoRes.success) {
-    return brevoRes;
-  }
+  const mailOptions = {
+    from: `"TeacherWorld Support" <${GMAIL_USER}>`,
+    to: normalizedEmail,
+    subject,
+    html: htmlContent,
+  };
 
-  // 2. Try Gmail SMTP
-  if (GMAIL_USER && GMAIL_PASSWORD) {
-    let transportToUse = gmailTransport;
-    if (!transportToUse) {
-      transportToUse = createGmailTransport();
-    }
-
+  try {
+    const t465 = createGmailTransport465();
+    const result = await withTimeout(t465.sendMail(mailOptions), 10000);
+    return { success: true, messageId: result.messageId, provider: 'gmail-465' };
+  } catch (err465) {
     try {
-      const result = await withTimeout(
-        transportToUse.sendMail({
-          from: `"TeacherWorld" <${GMAIL_USER}>`,
-          to: normalizedEmail,
-          subject,
-          html: htmlContent,
-        }),
-        8000
-      );
-      return { success: true, messageId: result.messageId, provider: 'gmail-smtp' };
-    } catch (err) {
-      console.error('[MAILER] Status update SMTP failed:', err.message);
-      return { success: false, error: err.message };
+      const t587 = createGmailTransport587();
+      const result = await withTimeout(t587.sendMail(mailOptions), 10000);
+      return { success: true, messageId: result.messageId, provider: 'gmail-587' };
+    } catch (err587) {
+      if (BREVO_API_KEY) {
+        return sendViaBrevoAPI({ to: normalizedEmail, subject, htmlContent });
+      }
+      return { success: false, error: err587.message };
     }
   }
-
-  return { success: false, error: 'No email service available' };
 };
 
-module.exports = { sendOTP, sendStatusUpdate, transporter, sendOTPViaGmail };
+module.exports = {
+  sendOTP,
+  sendStatusUpdate,
+  transporter: defaultTransporter,
+  sendOTPViaGmail,
+};

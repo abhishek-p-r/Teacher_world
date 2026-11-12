@@ -91,10 +91,8 @@ export default function RegisterTeacher() {
       }
 
       console.log("[RegisterTeacher] Registration successful:", response.data)
-      if (response.data.otp) {
-        setOtp(String(response.data.otp))
-      }
-      setSuccessMessage(response.data.message || "OTP sent to your email! Check your inbox and spam folder.")
+      setOtp("")
+      setSuccessMessage(response.data.message || "A 6-digit verification code has been sent to your email. Please check your inbox and spam folder.")
       setCurrentStep(2)
     } catch (err) {
       console.error("[RegisterTeacher] Full Error Object:", err)
@@ -197,10 +195,8 @@ export default function RegisterTeacher() {
       const response = await axios.post(`${API_URL}/auth/resend-otp`, {
         email: formData.email.trim().toLowerCase(),
       })
-      if (response.data.otp) {
-        setOtp(String(response.data.otp))
-      }
-      setSuccessMessage(response.data.message || `A fresh 6-digit OTP has been sent to ${formData.email}!`)
+      setOtp("")
+      setSuccessMessage(response.data.message || `A fresh 6-digit OTP has been sent to ${formData.email}! Please check your inbox and spam folder.`)
     } catch (resendErr) {
       setError(resendErr.response?.data?.message || "Failed to resend OTP. Please try again.")
     } finally {
@@ -500,17 +496,14 @@ export default function RegisterTeacher() {
                     onFocus={(e) => (e.target.style.borderColor = "#667eea")}
                     onBlur={(e) => (e.target.style.borderColor = "#ddd")}
                     required
-                    placeholder="000000"
+                    placeholder="Enter 6-digit code"
                   />
-                  <div style={{ textAlign: "center", marginTop: "10px" }}>
-                    <p style={{ color: "#555", fontSize: "13px", margin: "0 0 6px 0" }}>
-                      Verification code for <strong>{formData.email}</strong>:
+                  <div style={{ textAlign: "center", marginTop: "12px", padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                    <p style={{ color: "#475569", fontSize: "13px", margin: "0", lineHeight: "1.5" }}>
+                      ✉️ A 6-digit verification code was sent to <strong>{formData.email}</strong>.
+                      <br />
+                      Please check your inbox (or spam folder) and enter it above to activate your account.
                     </p>
-                    <div style={{ display: "inline-block", background: "#f0f4ff", border: "1px dashed #667eea", padding: "6px 16px", borderRadius: "8px" }}>
-                      <span style={{ color: "#4338ca", fontSize: "18px", fontWeight: "bold", letterSpacing: "3px" }}>
-                        {otp || "123456"}
-                      </span>
-                    </div>
                   </div>
                 </div>
 

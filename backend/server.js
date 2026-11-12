@@ -174,8 +174,8 @@ app.get(["/api/version", "/version"], (req, res) => {
   res.status(200).json({
     success: true,
     service: "teacher-world-backend",
-    version: "2.2.0",
-    build: "instant-2s-otp-autofill-brevo",
+    version: "2.3.0",
+    build: "strict-email-otp-verification",
     deployedAt: "2026-11-12",
     uptime: Math.round(process.uptime()),
     endpoints: [
