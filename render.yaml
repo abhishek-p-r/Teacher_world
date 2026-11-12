@@ -19,5 +19,7 @@ services:
         sync: false
       - key: GMAIL_PASSWORD
         sync: false
+      - key: BREVO_API_KEY
+        sync: false
       - key: NODE_ENV
         value: production
