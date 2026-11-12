@@ -1,7 +1,7 @@
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 
-// Brevo Configuration (HTTPS Transactional Email API)
+// Brevo Configuration (HTTPS Transactional Email API - Primary Mailer)
 const BREVO_API_KEY = process.env.BREVO_API_KEY ? process.env.BREVO_API_KEY.trim() : null;
 const BREVO_SENDER_EMAIL = (process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || 'a35406332@gmail.com').trim();
 const BREVO_SENDER_NAME = (process.env.BREVO_SENDER_NAME || 'TeacherWorld').trim();
@@ -139,33 +139,10 @@ const sendOTPViaGmail = async (email, otp) => {
 
   let lastError = null;
 
-  // 1. Try Gmail Direct SSL (Port 465)
-  if (GMAIL_USER && GMAIL_PASSWORD) {
-    try {
-      const t465 = createGmailTransport465();
-      const result = await withTimeout(t465.sendMail(mailOptions), 10000);
-      console.log(`[MAILER] OTP successfully sent via Gmail Port 465 to ${normalizedEmail} (MessageId: ${result.messageId})`);
-      return { success: true, messageId: result.messageId, provider: 'gmail-smtp-465' };
-    } catch (err465) {
-      console.warn(`[MAILER] Gmail Port 465 attempt note (${err465.message}). Trying Port 587...`);
-      lastError = err465;
-    }
-
-    // 2. Try Gmail STARTTLS (Port 587)
-    try {
-      const t587 = createGmailTransport587();
-      const result = await withTimeout(t587.sendMail(mailOptions), 10000);
-      console.log(`[MAILER] OTP successfully sent via Gmail Port 587 to ${normalizedEmail} (MessageId: ${result.messageId})`);
-      return { success: true, messageId: result.messageId, provider: 'gmail-smtp-587' };
-    } catch (err587) {
-      console.warn(`[MAILER] Gmail Port 587 attempt note (${err587.message}). Trying Brevo API...`);
-      lastError = err587;
-    }
-  }
-
-  // 3. Try Brevo REST API fallback
+  // 1. PRIMARY: Try Brevo REST API first (as requested by user)
   if (BREVO_API_KEY) {
     try {
+      console.log(`[MAILER] Dispatching OTP to ${normalizedEmail} via Brevo API...`);
       const brevoRes = await sendViaBrevoAPI({
         to: normalizedEmail,
         subject,
@@ -173,11 +150,38 @@ const sendOTPViaGmail = async (email, otp) => {
         textContent,
       });
       if (brevoRes.success) {
+        console.log(`[MAILER] OTP successfully delivered to ${normalizedEmail} via Brevo API!`);
         return brevoRes;
       }
+      console.warn(`[MAILER] Brevo API sending failed (${brevoRes.reason}). Falling back to Gmail SMTP...`);
       lastError = new Error(brevoRes.reason || 'Brevo API error');
     } catch (brevoErr) {
+      console.warn(`[MAILER] Brevo API exception (${brevoErr.message}). Falling back to Gmail SMTP...`);
       lastError = brevoErr;
+    }
+  }
+
+  // 2. FALLBACK: Try Gmail Direct SSL (Port 465)
+  if (GMAIL_USER && GMAIL_PASSWORD) {
+    try {
+      const t465 = createGmailTransport465();
+      const result = await withTimeout(t465.sendMail(mailOptions), 10000);
+      console.log(`[MAILER] OTP successfully sent via Gmail Port 465 fallback to ${normalizedEmail} (MessageId: ${result.messageId})`);
+      return { success: true, messageId: result.messageId, provider: 'gmail-smtp-465' };
+    } catch (err465) {
+      console.warn(`[MAILER] Gmail Port 465 fallback failed (${err465.message}). Trying Port 587...`);
+      lastError = err465;
+    }
+
+    // 3. SECOND FALLBACK: Try Gmail STARTTLS (Port 587)
+    try {
+      const t587 = createGmailTransport587();
+      const result = await withTimeout(t587.sendMail(mailOptions), 10000);
+      console.log(`[MAILER] OTP successfully sent via Gmail Port 587 fallback to ${normalizedEmail} (MessageId: ${result.messageId})`);
+      return { success: true, messageId: result.messageId, provider: 'gmail-smtp-587' };
+    } catch (err587) {
+      console.warn(`[MAILER] Gmail Port 587 fallback failed (${err587.message}).`);
+      lastError = err587;
     }
   }
 
@@ -252,4 +256,5 @@ module.exports = {
   sendStatusUpdate,
   transporter: defaultTransporter,
   sendOTPViaGmail,
+  sendOTPEmail: sendOTPViaGmail,
 };
