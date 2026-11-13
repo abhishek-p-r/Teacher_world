@@ -12,12 +12,47 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+/**
+ * Mandatory Password Requirements:
+ * - At least 8 characters
+ * - Must contain letters (names / alphabet: a-z or A-Z)
+ * - Must contain numbers (0-9)
+ * - Must contain symbols / special characters (!@#$%^&*...)
+ */
+const validatePassword = (password) => {
+  if (!password || typeof password !== 'string') {
+    return { valid: false, message: "Password is required." };
+  }
+  if (password.length < 8) {
+    return { valid: false, message: "Password must be at least 8 characters long." };
+  }
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password);
+
+  if (!hasLetter) {
+    return { valid: false, message: "Password must contain at least one letter." };
+  }
+  if (!hasNumber) {
+    return { valid: false, message: "Password must contain at least one number." };
+  }
+  if (!hasSymbol) {
+    return { valid: false, message: "Password must contain at least one special symbol (!@#$%^&*)." };
+  }
+  return { valid: true };
+};
+
 // Register new teacher
 exports.registerTeacher = async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ success: false, message: "Missing required fields: name, email, and password are required." });
+    }
+
+    const pwdCheck = validatePassword(password);
+    if (!pwdCheck.valid) {
+      return res.status(400).json({ success: false, message: pwdCheck.message });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -96,6 +131,11 @@ exports.registerInstitution = async (req, res) => {
     const { email, password, institutionName } = req.body;
     if (!email || !password || !institutionName) {
       return res.status(400).json({ success: false, message: "Missing required fields: institution name, email, and password are required." });
+    }
+
+    const pwdCheck = validatePassword(password);
+    if (!pwdCheck.valid) {
+      return res.status(400).json({ success: false, message: pwdCheck.message });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -395,6 +435,11 @@ exports.resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
     if (!email || !otp || !newPassword) {
       return res.status(400).json({ message: "Email, OTP, and new password required" });
+    }
+
+    const pwdCheck = validatePassword(newPassword);
+    if (!pwdCheck.valid) {
+      return res.status(400).json({ message: pwdCheck.message });
     }
 
     // Find the active OTP token for password reset

@@ -7,6 +7,34 @@ import axios from "axios"
 import { API_URL, BASE_URL } from "../config/api"
 console.log("[RegisterTeacher] API URL:", API_URL, "BASE_URL:", BASE_URL)
 
+const getPasswordStrength = (pwd) => {
+  if (!pwd) return { score: 0, label: "", color: "#cbd5e1", percent: 0, checks: { length: false, letters: false, numbers: false, symbols: false } }
+
+  const hasMinLength = pwd.length >= 8
+  const hasLetter = /[a-zA-Z]/.test(pwd)
+  const hasNumber = /[0-9]/.test(pwd)
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)
+  const hasUpperLower = /[a-z]/.test(pwd) && /[A-Z]/.test(pwd)
+  const isLong = pwd.length >= 10
+
+  const checks = {
+    length: hasMinLength,
+    letters: hasLetter,
+    numbers: hasNumber,
+    symbols: hasSymbol,
+  }
+
+  const allMandatory = hasMinLength && hasLetter && hasNumber && hasSymbol
+
+  if (allMandatory && (hasUpperLower || isLong)) {
+    return { score: 3, label: "Strong", color: "#10b981", percent: 100, checks }
+  } else if (allMandatory) {
+    return { score: 2, label: "Medium", color: "#f59e0b", percent: 66, checks }
+  } else {
+    return { score: 1, label: "Weak", color: "#ef4444", percent: 33, checks }
+  }
+}
+
 export default function RegisterTeacher() {
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(1)
@@ -46,8 +74,9 @@ export default function RegisterTeacher() {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters")
+    const pwdStrength = getPasswordStrength(formData.password)
+    if (!pwdStrength.checks.length || !pwdStrength.checks.letters || !pwdStrength.checks.numbers || !pwdStrength.checks.symbols) {
+      setError("Password must be at least 8 characters long and contain letters, numbers, and special symbols (!@#$...).")
       return
     }
 
@@ -402,8 +431,38 @@ export default function RegisterTeacher() {
                     onFocus={(e) => (e.target.style.borderColor = "#667eea")}
                     onBlur={(e) => (e.target.style.borderColor = "#ddd")}
                     required
-                    placeholder="At least 6 characters"
+                    placeholder="Min 8 chars with letters, numbers & symbols"
                   />
+                  {formData.password && (() => {
+                    const str = getPasswordStrength(formData.password)
+                    return (
+                      <div style={{ marginTop: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "12px", color: "#64748b" }}>Password Strength:</span>
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: str.color }}>
+                            {str.label} Password
+                          </span>
+                        </div>
+                        <div style={{ width: "100%", height: "6px", background: "#e2e8f0", borderRadius: "3px", overflow: "hidden" }}>
+                          <div style={{ width: `${str.percent}%`, height: "100%", background: str.color, transition: "width 0.3s, background 0.3s" }} />
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginTop: "8px" }}>
+                          <span style={{ fontSize: "11px", color: str.checks.length ? "#10b981" : "#94a3b8" }}>
+                            {str.checks.length ? "✓" : "✗"} 8+ Characters
+                          </span>
+                          <span style={{ fontSize: "11px", color: str.checks.letters ? "#10b981" : "#94a3b8" }}>
+                            {str.checks.letters ? "✓" : "✗"} Letters (a-z, A-Z)
+                          </span>
+                          <span style={{ fontSize: "11px", color: str.checks.numbers ? "#10b981" : "#94a3b8" }}>
+                            {str.checks.numbers ? "✓" : "✗"} Numbers (0-9)
+                          </span>
+                          <span style={{ fontSize: "11px", color: str.checks.symbols ? "#10b981" : "#94a3b8" }}>
+                            {str.checks.symbols ? "✓" : "✗"} Special Symbol (!@#$)
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 <div style={{ marginBottom: "24px" }}>

@@ -174,9 +174,9 @@ app.get(["/api/version", "/version"], (req, res) => {
   res.status(200).json({
     success: true,
     service: "teacher-world-backend",
-    version: "2.4.0",
-    build: "brevo-api-primary-multi-channel",
-    deployedAt: "2026-11-12",
+    version: "2.5.0",
+    build: "password-strength-mandatory-8chars-symbols",
+    deployedAt: "2026-11-13",
     uptime: Math.round(process.uptime()),
     endpoints: [
       "/api/auth/register-teacher",
