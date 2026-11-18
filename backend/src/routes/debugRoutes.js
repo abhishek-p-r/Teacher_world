@@ -26,9 +26,23 @@ router.get('/token', (req, res) => {
 router.get('/test-email', async (req, res) => {
   try {
     const to = req.query.to || 'a35406332@gmail.com'
+    const brevoKeyConfigured = !!(process.env.BREVO_API_KEY && process.env.BREVO_API_KEY.trim())
+    const gmailUserConfigured = !!(process.env.GMAIL_USER && process.env.GMAIL_USER.trim())
+    const gmailPassConfigured = !!(process.env.GMAIL_PASSWORD && process.env.GMAIL_PASSWORD.trim())
+
     const { sendOTPViaGmail } = require('../config/mailer')
     const result = await sendOTPViaGmail(to, '999888')
-    res.json({ success: true, to, result })
+    res.json({
+      success: true,
+      to,
+      diagnostics: {
+        brevoApiKeyConfigured: brevoKeyConfigured,
+        brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || 'a35406332@gmail.com',
+        gmailUserConfigured,
+        gmailPassConfigured
+      },
+      result
+    })
   } catch (err) {
     res.status(500).json({ success: false, error: err.message })
   }
