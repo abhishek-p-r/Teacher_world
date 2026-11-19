@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node backend/server.js",
-    "build": "echo Root build successful",
+    "build": "cd frontend && npm install && npm run build",
     "start:backend": "cd backend && npm start",
     "build:backend": "cd backend && npm install",
     "start:frontend": "cd frontend && npm run dev",

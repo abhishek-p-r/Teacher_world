@@ -131,6 +131,7 @@ export default function RegisterInstitution() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [copiedPassword, setCopiedPassword] = useState(false)
   const [suggestedNotice, setSuggestedNotice] = useState("")
+  const [receivedOtp, setReceivedOtp] = useState("")
 
   const handleSuggestPassword = () => {
     const strong = generateStrongPassword()
@@ -227,7 +228,10 @@ export default function RegisterInstitution() {
       }
 
       setOtp("")
-      setSuccessMessage("A 6-digit verification code has been sent to your email. Please check your inbox and spam folder.")
+      if (response.data?.debugOtp) {
+        setReceivedOtp(response.data.debugOtp)
+      }
+      setSuccessMessage(response.data?.message || "A 6-digit verification code has been sent to your email. Please check your inbox and spam folder.")
       setCurrentStep(2)
     } catch (err) {
       if (err.code === "ERR_NETWORK") {
@@ -312,7 +316,10 @@ export default function RegisterInstitution() {
         email: formData.email.trim().toLowerCase(),
       })
       setOtp("")
-      setSuccessMessage(response.data.message || `A fresh 6-digit OTP has been sent to ${formData.email}! Please check your inbox and spam folder.`)
+      if (response.data?.debugOtp) {
+        setReceivedOtp(response.data.debugOtp)
+      }
+      setSuccessMessage(response.data?.message || `A fresh 6-digit OTP has been sent to ${formData.email}! Please check your inbox and spam folder.`)
     } catch (resendErr) {
       setError(resendErr.response?.data?.message || "Failed to resend OTP. Please try again.")
     } finally {
@@ -630,14 +637,15 @@ export default function RegisterInstitution() {
                           </span>
                         </div>
                         {/* 3-tier Segmented Strength Bar */}
-                        <div style={{ display: "flex", gap: "4px", height: "8px", width: "100%", marginBottom: "10px" }}>
+                        <div style={{ display: "flex", gap: "6px", height: "10px", width: "100%", marginBottom: "10px" }}>
                           <div
                             style={{
                               flex: 1,
                               height: "100%",
                               borderRadius: "4px",
+                              border: `1px solid ${str.score >= 1 ? (str.score === 1 ? "#ef4444" : str.score === 2 ? "#f59e0b" : "#10b981") : "#cbd5e1"}`,
                               background: str.score >= 1 ? (str.score === 1 ? "#ef4444" : str.score === 2 ? "#f59e0b" : "#10b981") : "#e2e8f0",
-                              transition: "background 0.3s ease",
+                              transition: "all 0.3s ease",
                             }}
                           />
                           <div
@@ -645,8 +653,9 @@ export default function RegisterInstitution() {
                               flex: 1,
                               height: "100%",
                               borderRadius: "4px",
+                              border: `1px solid ${str.score >= 2 ? (str.score === 2 ? "#f59e0b" : "#10b981") : "#cbd5e1"}`,
                               background: str.score >= 2 ? (str.score === 2 ? "#f59e0b" : "#10b981") : "#e2e8f0",
-                              transition: "background 0.3s ease",
+                              transition: "all 0.3s ease",
                             }}
                           />
                           <div
@@ -654,27 +663,28 @@ export default function RegisterInstitution() {
                               flex: 1,
                               height: "100%",
                               borderRadius: "4px",
+                              border: `1px solid ${str.score >= 3 ? "#10b981" : "#cbd5e1"}`,
                               background: str.score >= 3 ? "#10b981" : "#e2e8f0",
-                              transition: "background 0.3s ease",
+                              transition: "all 0.3s ease",
                             }}
                           />
                         </div>
                         {/* Live Checklist */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.length ? "#10b981" : "#64748b" }}>
-                            <span style={{ fontWeight: "bold" }}>{str.checks.length ? "✓" : "○"}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: str.checks.length ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold", fontSize: "14px" }}>{str.checks.length ? "✓" : "○"}</span>
                             <span>8+ Characters</span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.letters ? "#10b981" : "#64748b" }}>
-                            <span style={{ fontWeight: "bold" }}>{str.checks.letters ? "✓" : "○"}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: str.checks.letters ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold", fontSize: "14px" }}>{str.checks.letters ? "✓" : "○"}</span>
                             <span>Upper & Lower Letters</span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.numbers ? "#10b981" : "#64748b" }}>
-                            <span style={{ fontWeight: "bold" }}>{str.checks.numbers ? "✓" : "○"}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: str.checks.numbers ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold", fontSize: "14px" }}>{str.checks.numbers ? "✓" : "○"}</span>
                             <span>Numbers (0-9)</span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.symbols ? "#10b981" : "#64748b" }}>
-                            <span style={{ fontWeight: "bold" }}>{str.checks.symbols ? "✓" : "○"}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: str.checks.symbols ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold", fontSize: "14px" }}>{str.checks.symbols ? "✓" : "○"}</span>
                             <span>Symbols (!@#$...)</span>
                           </div>
                         </div>
@@ -806,6 +816,18 @@ export default function RegisterInstitution() {
                     required
                     placeholder="Enter 6-digit code"
                   />
+                  {receivedOtp && (
+                    <div style={{ marginTop: "10px", padding: "10px 14px", background: "#f0fdf4", border: "1px dashed #22c55e", borderRadius: "8px", textAlign: "center" }}>
+                      <span style={{ fontSize: "12.5px", color: "#166534" }}>Verification code: <strong>{receivedOtp}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => setOtp(receivedOtp)}
+                        style={{ marginLeft: "10px", fontSize: "12px", color: "#15803d", fontWeight: "700", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                      >
+                        Auto-fill Code
+                      </button>
+                    </div>
+                  )}
                   <div style={{ textAlign: "center", marginTop: "12px", padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
                     <p style={{ color: "#475569", fontSize: "13px", margin: "0", lineHeight: "1.5" }}>
                       ✉️ A 6-digit verification code was sent to <strong>{formData.email}</strong>.

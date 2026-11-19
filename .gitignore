@@ -6,11 +6,11 @@ frontend/node_modules/
 
 # Next.js / Vite build outputs
 .next/
-dist/
-frontend/dist/
+/dist/
 out/
 build/
 *.tsbuildinfo
+!frontend/dist/**
 
 # Log files
 *.log
