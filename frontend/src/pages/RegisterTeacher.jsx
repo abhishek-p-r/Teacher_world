@@ -23,55 +23,95 @@ const generateStrongPassword = () => {
   return pwd.split("").sort(() => Math.random() - 0.5).join("")
 }
 
-const getPasswordSuggestionText = (pwd) => {
-  if (!pwd) {
-    return "💡 Tip: Click 'Suggest Strong Password' for an instant secure code, or include letters, numbers & symbols."
-  }
-  const str = getPasswordStrength(pwd)
-  if (!str.checks.length) {
-    return `💡 Suggestion: Add at least ${8 - pwd.length} more character(s) to reach minimum 8 characters.`
-  }
-  if (!str.checks.letters) {
-    return "💡 Suggestion: Include at least one letter (a-z or A-Z)."
-  }
-  if (!str.checks.numbers) {
-    return "💡 Suggestion: Include at least one numeric digit (0-9)."
-  }
-  if (!str.checks.symbols) {
-    return "💡 Suggestion: Include at least one special symbol (!@#$%^&*)."
-  }
-  if (str.score === 2) {
-    return "💡 Suggestion: Add an uppercase letter or make it 10+ characters to achieve a Strong rating."
-  }
-  return "✓ Excellent! Strong, high-security password."
-}
-
 const getPasswordStrength = (pwd) => {
-  if (!pwd) return { score: 0, label: "", color: "#cbd5e1", percent: 0, checks: { length: false, letters: false, numbers: false, symbols: false } }
-
-  const hasMinLength = pwd.length >= 8
-  const hasLetter = /[a-zA-Z]/.test(pwd)
-  const hasNumber = /[0-9]/.test(pwd)
-  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)
-  const hasUpperLower = /[a-z]/.test(pwd) && /[A-Z]/.test(pwd)
-  const isLong = pwd.length >= 10
+  const p = String(pwd || "")
+  const hasMinLength = p.length >= 8
+  const hasUpper = /[A-Z]/.test(p)
+  const hasLower = /[a-z]/.test(p)
+  const hasLetter = /[a-zA-Z]/.test(p)
+  const hasUpperAndLower = hasUpper && hasLower
+  const hasNumber = /[0-9]/.test(p)
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(p)
 
   const checks = {
     length: hasMinLength,
-    letters: hasLetter,
+    letters: hasUpperAndLower,
+    hasAnyLetter: hasLetter,
     numbers: hasNumber,
     symbols: hasSymbol,
   }
 
-  const allMandatory = hasMinLength && hasLetter && hasNumber && hasSymbol
-
-  if (allMandatory && (hasUpperLower || isLong)) {
-    return { score: 3, label: "Strong", color: "#10b981", percent: 100, checks }
-  } else if (allMandatory) {
-    return { score: 2, label: "Medium", color: "#f59e0b", percent: 66, checks }
-  } else {
-    return { score: 1, label: "Weak", color: "#ef4444", percent: 33, checks }
+  if (!p) {
+    return {
+      score: 0,
+      label: "Not Entered",
+      color: "#94a3b8",
+      bgColor: "#f1f5f9",
+      percent: 0,
+      checks,
+      isValid: false,
+    }
   }
+
+  // Strong: Must contain 8+ characters, BOTH uppercase and lowercase, numbers, AND symbols
+  if (hasMinLength && hasUpperAndLower && hasNumber && hasSymbol) {
+    return {
+      score: 3,
+      label: "Strong Password",
+      color: "#10b981",
+      bgColor: "#ecfdf5",
+      percent: 100,
+      checks,
+      isValid: true,
+    }
+  }
+
+  // Medium: Has 8+ chars, letters, numbers, and symbols
+  if (hasMinLength && hasLetter && hasNumber && hasSymbol) {
+    return {
+      score: 2,
+      label: "Medium Password",
+      color: "#f59e0b",
+      bgColor: "#fffbeb",
+      percent: 66,
+      checks,
+      isValid: true,
+    }
+  }
+
+  // Weak: Missing length, symbols, letters, or numbers
+  return {
+    score: 1,
+    label: "Weak Password",
+    color: "#ef4444",
+    bgColor: "#fef2f2",
+    percent: 33,
+    checks,
+    isValid: false,
+  }
+}
+
+const getPasswordSuggestionText = (pwd) => {
+  if (!pwd) {
+    return "💡 A strong password must include 8+ characters, uppercase & lowercase letters, numbers, and symbols."
+  }
+  const str = getPasswordStrength(pwd)
+  if (!str.checks.length) {
+    return `💡 Weak: Add at least ${8 - pwd.length} more character(s) to reach minimum 8 characters.`
+  }
+  if (!str.checks.hasAnyLetter) {
+    return "💡 Weak: Must include letters (a-z or A-Z)."
+  }
+  if (!str.checks.numbers) {
+    return "💡 Weak: Must include at least one numeric digit (0-9)."
+  }
+  if (!str.checks.symbols) {
+    return "💡 Weak: Must include at least one special symbol (!@#$%^&*)."
+  }
+  if (!str.checks.letters) {
+    return "💡 Medium: Add uppercase letters (A-Z) along with lowercase to make it Strong."
+  }
+  return "✓ Strong password! Contains characters, numbers, and symbols."
 }
 
 export default function RegisterTeacher() {
@@ -140,7 +180,7 @@ export default function RegisterTeacher() {
     }
 
     const pwdStrength = getPasswordStrength(formData.password)
-    if (!pwdStrength.checks.length || !pwdStrength.checks.letters || !pwdStrength.checks.numbers || !pwdStrength.checks.symbols) {
+    if (!pwdStrength.checks.length || !pwdStrength.checks.hasAnyLetter || !pwdStrength.checks.numbers || !pwdStrength.checks.symbols) {
       setError("Password must be at least 8 characters long and contain letters, numbers, and special symbols (!@#$...).")
       return
     }
@@ -553,43 +593,92 @@ export default function RegisterTeacher() {
                     </div>
                   )}
 
-                  {formData.password ? (() => {
+                  {(() => {
                     const str = getPasswordStrength(formData.password)
                     return (
-                      <div style={{ marginTop: "8px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                          <span style={{ fontSize: "12px", color: "#64748b" }}>Password Strength:</span>
-                          <span style={{ fontSize: "12px", fontWeight: "700", color: str.color }}>
-                            {str.label} Password
+                      <div style={{ marginTop: "10px", padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: "600", color: "#475569" }}>Password Strength:</span>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: "700",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              color: str.color,
+                              background: str.bgColor,
+                              border: `1px solid ${str.color}33`,
+                            }}
+                          >
+                            {str.label}
                           </span>
                         </div>
-                        <div style={{ width: "100%", height: "6px", background: "#e2e8f0", borderRadius: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${str.percent}%`, height: "100%", background: str.color, transition: "width 0.3s, background 0.3s" }} />
+                        {/* 3-tier Segmented Strength Bar */}
+                        <div style={{ display: "flex", gap: "4px", height: "8px", width: "100%", marginBottom: "10px" }}>
+                          <div
+                            style={{
+                              flex: 1,
+                              height: "100%",
+                              borderRadius: "4px",
+                              background: str.score >= 1 ? (str.score === 1 ? "#ef4444" : str.score === 2 ? "#f59e0b" : "#10b981") : "#e2e8f0",
+                              transition: "background 0.3s ease",
+                            }}
+                          />
+                          <div
+                            style={{
+                              flex: 1,
+                              height: "100%",
+                              borderRadius: "4px",
+                              background: str.score >= 2 ? (str.score === 2 ? "#f59e0b" : "#10b981") : "#e2e8f0",
+                              transition: "background 0.3s ease",
+                            }}
+                          />
+                          <div
+                            style={{
+                              flex: 1,
+                              height: "100%",
+                              borderRadius: "4px",
+                              background: str.score >= 3 ? "#10b981" : "#e2e8f0",
+                              transition: "background 0.3s ease",
+                            }}
+                          />
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginTop: "8px" }}>
-                          <span style={{ fontSize: "11px", color: str.checks.length ? "#10b981" : "#94a3b8" }}>
-                            {str.checks.length ? "✓" : "✗"} 8+ Characters
-                          </span>
-                          <span style={{ fontSize: "11px", color: str.checks.letters ? "#10b981" : "#94a3b8" }}>
-                            {str.checks.letters ? "✓" : "✗"} Letters (a-z, A-Z)
-                          </span>
-                          <span style={{ fontSize: "11px", color: str.checks.numbers ? "#10b981" : "#94a3b8" }}>
-                            {str.checks.numbers ? "✓" : "✗"} Numbers (0-9)
-                          </span>
-                          <span style={{ fontSize: "11px", color: str.checks.symbols ? "#10b981" : "#94a3b8" }}>
-                            {str.checks.symbols ? "✓" : "✗"} Special Symbol (!@#$)
-                          </span>
+                        {/* Live Checklist */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.length ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold" }}>{str.checks.length ? "✓" : "○"}</span>
+                            <span>8+ Characters</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.letters ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold" }}>{str.checks.letters ? "✓" : "○"}</span>
+                            <span>Upper & Lower Letters</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.numbers ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold" }}>{str.checks.numbers ? "✓" : "○"}</span>
+                            <span>Numbers (0-9)</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11.5px", color: str.checks.symbols ? "#10b981" : "#64748b" }}>
+                            <span style={{ fontWeight: "bold" }}>{str.checks.symbols ? "✓" : "○"}</span>
+                            <span>Symbols (!@#$...)</span>
+                          </div>
                         </div>
-                        <div style={{ marginTop: "8px", fontSize: "11.5px", color: str.score === 3 ? "#059669" : "#475569", background: str.score === 3 ? "#ecfdf5" : "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                        {/* Real-time Guidance / Suggestion */}
+                        <div
+                          style={{
+                            marginTop: "8px",
+                            fontSize: "11px",
+                            color: str.score === 3 ? "#059669" : "#64748b",
+                            background: str.score === 3 ? "#ecfdf5" : "#ffffff",
+                            padding: "6px 8px",
+                            borderRadius: "4px",
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
                           {getPasswordSuggestionText(formData.password)}
                         </div>
                       </div>
                     )
-                  })() : (
-                    <div style={{ marginTop: "6px", fontSize: "11.5px", color: "#64748b" }}>
-                      💡 Tip: Click <strong>"Suggest Strong Password"</strong> above for an instant high-security password.
-                    </div>
-                  )}
+                  })()}
                 </div>
 
                 <div style={{ marginBottom: "24px" }}>
