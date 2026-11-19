@@ -3,9 +3,48 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import axios from "axios"
+import { Sparkles, Eye, EyeOff, Copy, Check } from "lucide-react"
 
 import { API_URL, BASE_URL } from "../config/api"
 console.log("[RegisterTeacher] API URL:", API_URL, "BASE_URL:", BASE_URL)
+
+const generateStrongPassword = () => {
+  const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+  const lowers = "abcdefghijkmnopqrstuvwxyz"
+  const numbers = "23456789"
+  const symbols = "!@#$%^&*+=-_"
+
+  let pwd = ""
+  for (let i = 0; i < 3; i++) pwd += uppers[Math.floor(Math.random() * uppers.length)]
+  for (let i = 0; i < 3; i++) pwd += lowers[Math.floor(Math.random() * lowers.length)]
+  for (let i = 0; i < 3; i++) pwd += numbers[Math.floor(Math.random() * numbers.length)]
+  for (let i = 0; i < 3; i++) pwd += symbols[Math.floor(Math.random() * symbols.length)]
+
+  return pwd.split("").sort(() => Math.random() - 0.5).join("")
+}
+
+const getPasswordSuggestionText = (pwd) => {
+  if (!pwd) {
+    return "💡 Tip: Click 'Suggest Strong Password' for an instant secure code, or include letters, numbers & symbols."
+  }
+  const str = getPasswordStrength(pwd)
+  if (!str.checks.length) {
+    return `💡 Suggestion: Add at least ${8 - pwd.length} more character(s) to reach minimum 8 characters.`
+  }
+  if (!str.checks.letters) {
+    return "💡 Suggestion: Include at least one letter (a-z or A-Z)."
+  }
+  if (!str.checks.numbers) {
+    return "💡 Suggestion: Include at least one numeric digit (0-9)."
+  }
+  if (!str.checks.symbols) {
+    return "💡 Suggestion: Include at least one special symbol (!@#$%^&*)."
+  }
+  if (str.score === 2) {
+    return "💡 Suggestion: Add an uppercase letter or make it 10+ characters to achieve a Strong rating."
+  }
+  return "✓ Excellent! Strong, high-security password."
+}
 
 const getPasswordStrength = (pwd) => {
   if (!pwd) return { score: 0, label: "", color: "#cbd5e1", percent: 0, checks: { length: false, letters: false, numbers: false, symbols: false } }
@@ -48,6 +87,32 @@ export default function RegisterTeacher() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [copiedPassword, setCopiedPassword] = useState(false)
+  const [suggestedNotice, setSuggestedNotice] = useState("")
+
+  const handleSuggestPassword = () => {
+    const strong = generateStrongPassword()
+    setFormData((prev) => ({
+      ...prev,
+      password: strong,
+      confirmPassword: strong,
+    }))
+    setShowPassword(true)
+    setShowConfirmPassword(true)
+    setSuggestedNotice("✨ Strong password generated and auto-filled! You can copy and save it.")
+    setTimeout(() => setSuggestedNotice(""), 6000)
+  }
+
+  const handleCopyPassword = () => {
+    if (!formData.password) return
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(formData.password)
+      setCopiedPassword(true)
+      setTimeout(() => setCopiedPassword(false), 2000)
+    }
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -402,38 +467,93 @@ export default function RegisterTeacher() {
                 </div>
 
                 <div style={{ marginBottom: "16px" }}>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: "8px",
-                      color: "#333",
-                      fontWeight: "500",
-                      fontSize: "14px",
-                    }}
-                  >
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      border: "1px solid #ddd",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                      fontFamily: "inherit",
-                      boxSizing: "border-box",
-                      outline: "none",
-                    }}
-                    value={formData.password}
-                    onChange={handleChange}
-                    onFocus={(e) => (e.target.style.borderColor = "#667eea")}
-                    onBlur={(e) => (e.target.style.borderColor = "#ddd")}
-                    required
-                    placeholder="Min 8 chars with letters, numbers & symbols"
-                  />
-                  {formData.password && (() => {
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <label
+                      style={{
+                        color: "#333",
+                        fontWeight: "500",
+                        fontSize: "14px",
+                        margin: 0,
+                      }}
+                    >
+                      Password <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSuggestPassword}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#4f46e5",
+                        background: "#eef2ff",
+                        border: "1px solid #c7d2fe",
+                        borderRadius: "6px",
+                        padding: "4px 9px",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                      title="Generate a secure strong password that meets all requirements"
+                    >
+                      <Sparkles size={13} color="#4f46e5" />
+                      Suggest Strong Password
+                    </button>
+                  </div>
+
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      autoComplete="new-password"
+                      style={{
+                        width: "100%",
+                        padding: "12px 75px 12px 14px",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        fontFamily: showPassword ? "monospace" : "inherit",
+                        letterSpacing: showPassword ? "1px" : "normal",
+                        boxSizing: "border-box",
+                        outline: "none",
+                      }}
+                      value={formData.password}
+                      onChange={handleChange}
+                      onFocus={(e) => (e.target.style.borderColor = "#667eea")}
+                      onBlur={(e) => (e.target.style.borderColor = "#ddd")}
+                      required
+                      placeholder="Min 8 chars with letters, numbers & symbols"
+                    />
+                    <div style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: "6px" }}>
+                      {formData.password && (
+                        <button
+                          type="button"
+                          onClick={handleCopyPassword}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", color: copiedPassword ? "#10b981" : "#64748b" }}
+                          title={copiedPassword ? "Copied!" : "Copy password"}
+                        >
+                          {copiedPassword ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", color: "#64748b" }}
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {suggestedNotice && (
+                    <div style={{ marginTop: "6px", fontSize: "12px", color: "#4338ca", background: "#e0e7ff", padding: "6px 10px", borderRadius: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span>{suggestedNotice}</span>
+                    </div>
+                  )}
+
+                  {formData.password ? (() => {
                     const str = getPasswordStrength(formData.password)
                     return (
                       <div style={{ marginTop: "8px" }}>
@@ -460,9 +580,16 @@ export default function RegisterTeacher() {
                             {str.checks.symbols ? "✓" : "✗"} Special Symbol (!@#$)
                           </span>
                         </div>
+                        <div style={{ marginTop: "8px", fontSize: "11.5px", color: str.score === 3 ? "#059669" : "#475569", background: str.score === 3 ? "#ecfdf5" : "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                          {getPasswordSuggestionText(formData.password)}
+                        </div>
                       </div>
                     )
-                  })()}
+                  })() : (
+                    <div style={{ marginTop: "6px", fontSize: "11.5px", color: "#64748b" }}>
+                      💡 Tip: Click <strong>"Suggest Strong Password"</strong> above for an instant high-security password.
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: "24px" }}>
@@ -475,28 +602,40 @@ export default function RegisterTeacher() {
                       fontSize: "14px",
                     }}
                   >
-                    Confirm Password
+                    Confirm Password <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      border: "1px solid #ddd",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                      fontFamily: "inherit",
-                      boxSizing: "border-box",
-                      outline: "none",
-                    }}
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    onFocus={(e) => (e.target.style.borderColor = "#667eea")}
-                    onBlur={(e) => (e.target.style.borderColor = "#ddd")}
-                    required
-                    placeholder="Confirm your password"
-                  />
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      autoComplete="new-password"
+                      style={{
+                        width: "100%",
+                        padding: "12px 42px 12px 14px",
+                        border: "1px solid #ddd",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        fontFamily: showConfirmPassword ? "monospace" : "inherit",
+                        letterSpacing: showConfirmPassword ? "1px" : "normal",
+                        boxSizing: "border-box",
+                        outline: "none",
+                      }}
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      onFocus={(e) => (e.target.style.borderColor = "#667eea")}
+                      onBlur={(e) => (e.target.style.borderColor = "#ddd")}
+                      required
+                      placeholder="Confirm your password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: "4px", color: "#64748b" }}
+                      title={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                   {formData.confirmPassword && (
                     <div style={{ marginTop: "6px", fontSize: "12px", fontWeight: "600", color: formData.password === formData.confirmPassword ? "#10b981" : "#ef4444" }}>
                       {formData.password === formData.confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
