@@ -97,6 +97,7 @@ const sendViaBrevoAPI = async ({ to, subject, htmlContent, textContent }) => {
 const sendOTPViaGmail = async (email, otp) => {
   const normalizedEmail = String(email || '').toLowerCase().trim();
   const cleanOtp = String(otp || '').trim();
+  console.log(`[AUTH-OTP] 🔐 Verification Code generated for ${normalizedEmail}: [${cleanOtp}]`);
   const subject = `TeacherWorld - Your Verification Code is ${cleanOtp}`;
   const textContent = `Welcome to TeacherWorld!\n\nYour 6-digit email verification code is: ${cleanOtp}\n\nThis code will expire in 15 minutes.\nIf you did not request this code, please ignore this email.`;
   const htmlContent =

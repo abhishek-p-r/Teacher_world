@@ -45,7 +45,9 @@ const validatePassword = (password) => {
 // Register new teacher
 exports.registerTeacher = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const email = req.body.email;
+    const password = req.body.password;
+    const name = (req.body.name || req.body.fullName || "").trim();
     if (!email || !password || !name) {
       return res.status(400).json({ success: false, message: "Missing required fields: name, email, and password are required." });
     }
@@ -95,6 +97,7 @@ exports.registerTeacher = async (req, res) => {
     }
 
     await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
+    console.log(`[REGISTER-TEACHER] OTP generated for ${normalizedEmail}: [${otp}]`);
     
     // Send email using verified Gmail SMTP / Brevo fallback
     const mailResult = await sendOTPViaGmail(normalizedEmail, otp);
@@ -128,7 +131,11 @@ exports.registerTeacher = async (req, res) => {
 // Register new institution
 exports.registerInstitution = async (req, res) => {
   try {
-    const { email, password, institutionName } = req.body;
+    const email = req.body.email;
+    const password = req.body.password;
+    const institutionName = (req.body.institutionName || req.body.name || "").trim();
+    const contactName = (req.body.name || req.body.institutionName || "").trim();
+
     if (!email || !password || !institutionName) {
       return res.status(400).json({ success: false, message: "Missing required fields: institution name, email, and password are required." });
     }
@@ -146,7 +153,7 @@ exports.registerInstitution = async (req, res) => {
       if (existingUser.verified) {
         return res.status(409).json({ success: false, message: "Email already registered. Please login instead." });
       }
-      existingUser.name = institutionName.trim();
+      existingUser.name = contactName || institutionName;
       existingUser.password = password;
       await existingUser.save();
       user = existingUser;
@@ -154,14 +161,14 @@ exports.registerInstitution = async (req, res) => {
       user = new User({
         email: normalizedEmail,
         password,
-        name: institutionName.trim(),
+        name: contactName || institutionName,
         role: "institution",
         verified: false,
       });
       await user.save();
       await InstitutionProfile.findOneAndUpdate(
         { userId: user._id },
-        { userId: user._id, institutionName: institutionName.trim() },
+        { userId: user._id, institutionName },
         { upsert: true, new: true }
       );
     }
@@ -177,6 +184,7 @@ exports.registerInstitution = async (req, res) => {
     }
 
     await OtpToken.createHashedOTP(normalizedEmail, otp, "registration");
+    console.log(`[REGISTER-INSTITUTION] OTP generated for ${normalizedEmail}: [${otp}]`);
 
     const mailResult = await sendOTPViaGmail(normalizedEmail, otp);
     if (!mailResult || !mailResult.success) {
@@ -227,7 +235,7 @@ exports.verifyOTP = async (req, res) => {
       return res.status(404).json({ success: false, message: "No registered account found with this email. Please register first." });
     }
 
-    // If user is already verified, do NOT verify random numbers; instruct to login
+    // If user is already verified, instruct to login
     if (user.verified) {
       return res.status(400).json({
         success: false,
@@ -235,31 +243,44 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Find the latest active OTP token for this email and purpose
-    const otpToken = await OtpToken.findOne({
+    // Find all active, unexpired tokens for this email and registration purpose (valid within 15 minutes)
+    const activeTokens = await OtpToken.find({
       email: normalizedEmail,
       used: false,
-      purpose: "registration"
+      purpose: "registration",
+      expiresAt: { $gt: new Date() }
     }).sort({ createdAt: -1 });
 
-    if (!otpToken) {
+    if (!activeTokens || activeTokens.length === 0) {
       return res.status(400).json({
         success: false,
         message: "No active verification code found or your code has expired. Please click 'Resend OTP' to receive a new code."
       });
     }
 
-    // Strictly verify OTP using bcrypt hash comparison - ONLY the real email OTP will match
-    try {
-      await otpToken.verifyOTP(cleanOtp);
-    } catch (verifyError) {
+    let matchedToken = null;
+    for (const token of activeTokens) {
+      if (token.attempts >= 5) continue;
+      const isMatch = await bcrypt.compare(cleanOtp, token.otpHash);
+      if (isMatch) {
+        matchedToken = token;
+        break;
+      } else {
+        token.attempts += 1;
+        await token.save();
+      }
+    }
+
+    if (!matchedToken) {
       return res.status(400).json({
         success: false,
-        message: verifyError.message || "Invalid verification code. Please check your email and try again."
+        message: "Invalid verification code. Please check your email and try again."
       });
     }
 
-    // Mark user verified and all registration tokens used
+    // Mark matched token as used and verify user
+    matchedToken.used = true;
+    await matchedToken.save();
     await User.updateOne({ _id: user._id }, { verified: true });
     await OtpToken.updateMany({ email: normalizedEmail, purpose: "registration" }, { used: true });
     logActivity({ userId: user._id, email: normalizedEmail, action: "verify.otp", req });

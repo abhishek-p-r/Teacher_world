@@ -497,6 +497,11 @@ export default function RegisterTeacher() {
                     required
                     placeholder="Confirm your password"
                   />
+                  {formData.confirmPassword && (
+                    <div style={{ marginTop: "6px", fontSize: "12px", fontWeight: "600", color: formData.password === formData.confirmPassword ? "#10b981" : "#ef4444" }}>
+                      {formData.password === formData.confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
+                    </div>
+                  )}
                 </div>
 
                 <button

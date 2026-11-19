@@ -59,6 +59,21 @@ export default function RegisterInstitution() {
     setError("")
     setSuccessMessage("")
 
+    if (!formData.institutionName.trim()) {
+      setError("Please enter your institution name")
+      return
+    }
+
+    if (!formData.name.trim()) {
+      setError("Please enter the contact person's name")
+      return
+    }
+
+    if (!formData.email.trim()) {
+      setError("Please enter your email address")
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
       return
@@ -73,9 +88,9 @@ export default function RegisterInstitution() {
     setLoading(true)
     try {
       const payload = {
-        name: formData.name,
-        institutionName: formData.institutionName,
-        email: formData.email,
+        name: formData.name.trim(),
+        institutionName: formData.institutionName.trim(),
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
       }
 
@@ -141,11 +156,11 @@ export default function RegisterInstitution() {
 
     try {
       const otpPayload = {
-        email: formData.email,
-        otp,
-        name: formData.name,
+        email: formData.email.trim().toLowerCase(),
+        otp: otp.trim(),
+        name: formData.name.trim(),
         password: formData.password,
-        institutionName: formData.institutionName,
+        institutionName: formData.institutionName.trim(),
         role: "institution",
       }
 
@@ -498,6 +513,11 @@ export default function RegisterInstitution() {
                     required
                     placeholder="Confirm your password"
                   />
+                  {formData.confirmPassword && (
+                    <div style={{ marginTop: "6px", fontSize: "12px", fontWeight: "600", color: formData.password === formData.confirmPassword ? "#10b981" : "#ef4444" }}>
+                      {formData.password === formData.confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
+                    </div>
+                  )}
                 </div>
 
                 <button
